@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { browser, dev } from "$app/environment";
 import { notify } from "$lib/utils/utils";
+import { proxyImageMetadata } from "$lib/utils/thumbnailProxyUrl";
 import type { Actions, Methods } from "./types";
 
 type Deferred<T> = {
@@ -45,11 +46,7 @@ class IDBService {
 			notify(data.message, "success");
 		}
 
-		if (data.data) {
-			promise.resolve(data.data);
-		}
-
-		promise.resolve(data.data);
+		promise.resolve(proxyImageMetadata(data.data, location.origin));
 	};
 
 	constructor() {

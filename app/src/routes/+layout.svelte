@@ -21,6 +21,7 @@
     import {currentTrack, queue} from "$lib/stores/list";
     import {syncTabs} from "$lib/tabSync.js";
     import {Logger} from "$lib/utils";
+    import {proxyImageMetadata} from "$lib/utils/thumbnailProxyUrl";
     import {SessionListService} from "$stores/list/sessionList";
     import {onMount} from "svelte";
     import {get, writable} from "svelte/store";
@@ -116,10 +117,10 @@
                 $settings["playback"]["Remember Last Track"] &&
                 localStorage["lastTrack"]
             ) {
-                const track = JSON.parse(
+                const track = proxyImageMetadata(JSON.parse(
                     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                     localStorage.getItem("lastTrack")! as string,
-                ) as unknown as typeof $currentTrack;
+                ), location.origin) as unknown as typeof $currentTrack;
 
                 SessionListService.setTrackWillPlayNext(track, 0);
                 SessionListService.getMoreLikeThis({

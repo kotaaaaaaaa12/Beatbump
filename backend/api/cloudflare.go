@@ -189,6 +189,17 @@ func isImageURL(u *url.URL) bool {
 
 func CloudImageHandler(c echo.Context) error {
 	raw := c.QueryParam("url")
+	if c.QueryParams().Has("id") {
+		id := c.QueryParam("id")
+		if len(id) == 0 || len(id) > 11000 {
+			return c.String(400, "Invalid image ID")
+		}
+		decoded, err := base64.RawURLEncoding.DecodeString(id)
+		if err != nil {
+			return c.String(400, "Invalid image ID")
+		}
+		raw = string(decoded)
+	}
 	u, err := url.Parse(raw)
 	if len(raw) > 8192 || err != nil || !isImageURL(u) {
 		return c.String(400, "Invalid image URL")
@@ -240,8 +251,16 @@ func rewriteImages(value interface{}, origin string) interface{} {
 	switch item := value.(type) {
 	case string:
 		u, err := url.Parse(item)
+		// Upgrade previously stored query URLs when they pass through metadata again.
+		if err == nil && u.Path == "/api/v1/image" && u.Query().Has("url") {
+			candidate, parseErr := url.Parse(u.Query().Get("url"))
+			if parseErr == nil && isImageURL(candidate) {
+				u = candidate
+				item = candidate.String()
+			}
+		}
 		if err == nil && isImageURL(u) {
-			return origin + "/api/v1/image?url=" + url.QueryEscape(item)
+			return origin + "/api/v1/image?id=" + base64.RawURLEncoding.EncodeToString([]byte(item))
 		}
 	case []interface{}:
 		for i := range item {
