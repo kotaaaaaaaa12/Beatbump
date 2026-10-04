@@ -583,6 +583,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		this.resolvingTrack = false;
 		const checkpoint = preservePosition ? this.lastPosition : 0;
 		this.sourceRevision++;
+		this.nextWarmAt = 0;
 		this.lastPosition = checkpoint;
 		this.pendingPosition = checkpoint > 0 ? checkpoint : undefined;
 		this._currentTimeStore.set(checkpoint);
@@ -603,6 +604,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		this.contentDuration = duration !== undefined && Number.isFinite(duration) && duration > 0
 			? duration / 1000 : undefined;
 		this._durationStore.set(this.contentDuration ?? 0);
+		markPlaybackSource(url);
 		setPosition(checkpoint, this.duration);
 
 		this.nextSrc.url = undefined;
@@ -758,6 +760,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		});
 		this.onEvent("playing", () => {
 			this._loading.set(false);
+			markPlaybackStarted(this.player.src);
 			this.warmNextTrack();
 		});
 		this.onEvent("waiting", () => this._loading.set(this.playRequested));
@@ -944,12 +947,12 @@ function metadataExpiry(data: any) {
 }
 
 // Short-lived, bounded metadata cache; concurrent requests share one lookup.
-const playerLookups = new Map<string, { expires: number; promise: Promise<any> }>();
+const playerLookups = new Map<string, { expires: number; retries: number; promise: Promise<any> }>();
 function resolvePlayer(videoId: string, playlistId?: string, params?: string): Promise<any> {
 	const key = JSON.stringify([videoId, playlistId, params]);
 	const existing = playerLookups.get(key);
 	if (existing && existing.expires > Date.now()) return existing.promise;
-	const entry = { expires: Infinity, promise: Promise.resolve<any>(undefined) };
+	const entry = { expires: Infinity, retries: 0, promise: Promise.resolve<any>(undefined) };
 	entry.promise = (async () => {
 		for (let attempt = 0; attempt < 30; attempt++) {
 			const query = new URLSearchParams({ videoId });
@@ -957,6 +960,7 @@ function resolvePlayer(videoId: string, playlistId?: string, params?: string): P
 			if (params) query.set("playerParams", params);
 			const response = await APIClient.fetch(`/api/v1/player.json?${query}`);
 			if (response.status === 503 && attempt < 29) {
+				entry.retries++;
 				await new Promise(resolve => setTimeout(resolve, 1000));
 				continue;
 			}
@@ -980,6 +984,95 @@ function resolvePlayer(videoId: string, playlistId?: string, params?: string): P
 }
 let playbackRequest = 0;
 
+export interface PlaybackTiming {
+	version: 1;
+	phase: "resolving" | "loading" | "playing" | "failed";
+	metadataCache: "miss" | "shared" | "hit";
+	metadataMs?: number;
+	queueMs?: number;
+	sourceReadyMs?: number;
+	audioStartMs?: number;
+	totalMs?: number;
+	readinessRetries: number;
+}
+
+export const playbackTiming = writable<PlaybackTiming | null>(null);
+export interface PlaybackPreparation {
+	request: number;
+	videoId: string;
+	startedAt: number;
+	source: Promise<any>;
+}
+let activeTiming: {
+	request: number;
+	startedAt: number;
+	sourceAt?: number;
+	source?: string;
+	result: PlaybackTiming;
+} | undefined;
+const elapsed = (start: number) => Math.round(performance.now() - start);
+
+/** Start the selected track's lookup while its queue is being fetched. */
+export function preparePlayback(videoId: string, playlistId?: string, params?: string): PlaybackPreparation {
+	const request = ++playbackRequest;
+	const startedAt = performance.now();
+	const key = JSON.stringify([videoId, playlistId, params]);
+	const cached = playerLookups.get(key);
+	const metadataCache = cached && cached.expires > Date.now()
+		? cached.expires === Infinity ? "shared" : "hit" : "miss";
+	activeTiming = { request, startedAt, result: { version: 1, phase: "resolving", metadataCache, readinessRetries: 0 } };
+	playbackTiming.set({ ...activeTiming.result });
+	AudioPlayer.prepareTrack();
+	const source = resolvePlayer(videoId, playlistId, params).then(data => {
+		if (activeTiming?.request === request) {
+			activeTiming.result.metadataMs = elapsed(startedAt);
+			activeTiming.result.readinessRetries = playerLookups.get(key)?.retries ?? 0;
+			playbackTiming.set({ ...activeTiming.result });
+		}
+		return data;
+	});
+	// Queue resolution may still be pending when this lookup fails.
+	void source.catch(() => {});
+	return { request, videoId, startedAt, source };
+}
+
+export function isPlaybackPreparationCurrent(prepared: PlaybackPreparation) {
+	return prepared.request === playbackRequest;
+}
+
+export function recordQueueTiming(prepared: PlaybackPreparation, startedAt: number) {
+	if (activeTiming?.request !== prepared.request) return;
+	activeTiming.result.queueMs = elapsed(startedAt);
+	playbackTiming.set({ ...activeTiming.result });
+}
+
+export function cancelPreparedPlayback(prepared: PlaybackPreparation) {
+	if (!isPlaybackPreparationCurrent(prepared)) return;
+	AudioPlayer.trackLookupFailed();
+	if (activeTiming?.request === prepared.request) {
+		activeTiming.result.phase = "failed";
+		playbackTiming.set({ ...activeTiming.result });
+	}
+}
+
+function markPlaybackSource(url: string) {
+	if (!activeTiming || activeTiming.result.phase !== "resolving") return;
+	activeTiming.source = new URL(url, location.href).href;
+	activeTiming.sourceAt = performance.now();
+	activeTiming.result.sourceReadyMs = elapsed(activeTiming.startedAt);
+	activeTiming.result.phase = "loading";
+	playbackTiming.set({ ...activeTiming.result });
+}
+
+function markPlaybackStarted(url: string) {
+	if (!activeTiming || activeTiming.result.phase !== "loading" || activeTiming.source !== url ||
+		activeTiming.sourceAt === undefined) return;
+	activeTiming.result.audioStartMs = elapsed(activeTiming.sourceAt);
+	activeTiming.result.totalMs = elapsed(activeTiming.startedAt);
+	activeTiming.result.phase = "playing";
+	playbackTiming.set({ ...activeTiming.result });
+}
+
 /** Prepare a source without changing playback or displaying an error for optional prefetch. */
 export function prefetchSource(videoId: string, playlistId?: string) {
 	return resolvePlayer(videoId, playlistId);
@@ -996,6 +1089,7 @@ export const getSrc = async (
 	playlistId?: string,
 	params?: string,
 	shouldAutoplay = true,
+	prepared?: PlaybackPreparation,
 ): Promise<
 	| {
 		body: ResponseBody | null;
@@ -1003,11 +1097,18 @@ export const getSrc = async (
 	}
 	| undefined
 > => {
-	const request = shouldAutoplay ? ++playbackRequest : undefined;
-	if (shouldAutoplay) AudioPlayer.prepareTrack();
+	if (prepared && (prepared.videoId !== videoId || !isPlaybackPreparationCurrent(prepared))) return;
+	const preparation = shouldAutoplay ? prepared : undefined;
+	let selection = preparation;
 
 	const currentTrack = SessionListService.value.mix.find(t => t.videoId === videoId);
 	if (currentTrack?.localUrl) {
+		if (shouldAutoplay) {
+			++playbackRequest;
+			activeTiming = undefined;
+			playbackTiming.set(null);
+			AudioPlayer.prepareTrack();
+		}
 		const formats = {
 			hls: "",
 			dash: "",
@@ -1017,13 +1118,15 @@ export const getSrc = async (
 		}
 		return setTrack(formats, shouldAutoplay, AudioPlayer.playbackRequested);
 	}
+	if (shouldAutoplay && !selection) selection = preparePlayback(videoId || "", playlistId, params);
+	const request = selection?.request;
 
 	let res: any;
 	try {
-		res = await resolvePlayer(videoId || "", playlistId, params);
+		res = selection ? await selection.source : await resolvePlayer(videoId || "", playlistId, params);
 	} catch (error) {
 		if (request !== undefined && request !== playbackRequest) return;
-		if (shouldAutoplay) AudioPlayer.trackLookupFailed();
+		if (selection) cancelPreparedPlayback(selection);
 		return handleError(error instanceof Error ? error.message : "Unable to start playback.");
 	}
 	// A slow lookup for an earlier selection must not replace a more recent track.
@@ -1035,6 +1138,7 @@ export const getSrc = async (
 	});
 
 	const src = setTrack(formats, shouldAutoplay, AudioPlayer.playbackRequested);
+	if (src.error && selection) cancelPreparedPlayback(selection);
 	return src;
 }
 

@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { APIParams } from "$lib/constants";
 // eslint-disable-next-line import/no-cycle
-import { getSrc, prefetchSource, updateGroupPosition, updatePlayerSrc } from "$lib/player";
+import { cancelPreparedPlayback, getSrc, isPlaybackPreparationCurrent, preparePlayback,
+    prefetchSource, recordQueueTiming, updateGroupPosition, updatePlayerSrc,
+    type PlaybackPreparation } from "$lib/player";
 import type {
     Artist,
     ArtistInfo,
@@ -147,23 +149,15 @@ export class ListService {
         originalPlaylistId?: string;
         mix: Item[];
     }): number {
-        return mix.findIndex((item, index) => {
-            // find the index of the item that matches the videoId and optionally the playlist id OR the index property (or array index) that matches the keyId OR  matches both previous condiitions
-            const isSameVideoAndPlaylist =
-                item.videoId === originalVideoId &&
-                item.playlistId === originalPlaylistId;
-            const isSameIndex = index === originalIndex;
-
-            if (isSameVideoAndPlaylist || isSameIndex) {
-                return true;
-            }
-
-            if (isSameVideoAndPlaylist && isSameIndex) {
-                return true;
-            }
-
-            return false;
-        });
+        if (originalVideoId) {
+            const exact = mix.findIndex(item => item.videoId === originalVideoId &&
+                (!originalPlaylistId || item.playlistId === originalPlaylistId));
+            if (exact >= 0) return exact;
+            const byVideo = mix.findIndex(item => item.videoId === originalVideoId);
+            if (byVideo >= 0) return byVideo;
+        }
+        return originalIndex !== undefined && originalIndex >= 0 && originalIndex < mix.length
+            ? originalIndex : 0;
     }
 
     public async getMoreLikeThis({
@@ -329,6 +323,7 @@ export class ListService {
     public async initAutoMixSession(args: AutoMixArgs) {
         const toggle = togglePlayerLoad();
         this.isLocal = false;
+        let prepared: PlaybackPreparation | undefined;
         try {
             const {
                 clickedItem,
@@ -375,6 +370,10 @@ export class ListService {
             ) {
                 this._$.value.currentMixType = "auto";
 
+                // Resolve the known track in parallel with its recommendations.
+                if (videoId) prepared = preparePlayback(videoId, playlistId, config?.playerParams);
+                const queueStartedAt = performance.now();
+
                 const data = await fetchNext({
                     params: config?.playerParams ? config?.playerParams : undefined,
                     videoId,
@@ -390,27 +389,27 @@ export class ListService {
                     configType: config?.type || undefined,
                 });
 
+                if (prepared) {
+                    recordQueueTiming(prepared, queueStartedAt);
+                    if (!isPlaybackPreparationCurrent(prepared)) return;
+                }
+
                 if (!data || !Array.isArray(data.results)) {
                     throw new Error(
                         "Invalid response was returned from `next` endpoint.",
                     );
                 }
 
-                if (videoId != "" && clickedItem != undefined && data.results[0].videoId != videoId) {
+                if (videoId != "" && clickedItem != undefined && data.results[0]?.videoId != videoId) {
                     data.results.unshift(clickedItem);
                 }
 
-                const playbackIndex =
-                    keyId === 0
-                        ? 0
-                        : this.findIndexForTrack({
-                            originalVideoId: videoId,
-                            originalPlaylistId: playlistId,
-                            mix: data.results,
-                            originalIndex: keyId,
-                        }) ||
-                        keyId ||
-                        0;
+                const playbackIndex = this.findIndexForTrack({
+                    originalVideoId: videoId,
+                    originalPlaylistId: playlistId,
+                    mix: data.results,
+                    originalIndex: keyId,
+                });
                 const item = data.results[playbackIndex ?? 0];
 
                 const state = await this.#sanitizeAndUpdate(
@@ -423,6 +422,7 @@ export class ListService {
                     },
                 );
                 await tick();
+                if (prepared && !isPlaybackPreparationCurrent(prepared)) return;
                 const selectedVideoId = videoId ||
                     item?.videoId ||
                     data.results[0]?.videoId;
@@ -435,6 +435,8 @@ export class ListService {
                     selectedVideoId,
                     item?.playlistId || playlistId,
                     config?.playerParams,
+                    true,
+                    prepared,
                 );
                 syncTabs.updateSessionList(state);
 
@@ -450,6 +452,7 @@ export class ListService {
                 } as never);
             }
         } catch (err) {
+            if (prepared) cancelPreparedPlayback(prepared);
             Logger.err(err);
         } finally {
             toggle();
@@ -468,6 +471,7 @@ export class ListService {
     }): Promise<{ body: ResponseBody; error?: boolean } | undefined> {
         const toggle = togglePlayerLoad();
         this.isLocal = false;
+        let prepared: PlaybackPreparation | undefined;
 
         try {
             const {
@@ -488,6 +492,8 @@ export class ListService {
 
                 this.#revertState();
             }
+            if (videoId) prepared = preparePlayback(videoId, playlistId, params || undefined);
+            const queueStartedAt = performance.now();
             const data = await fetchNext({
                 params,
                 playlistId: playlistId.startsWith("VL")
@@ -500,11 +506,17 @@ export class ListService {
                 videoId,
             });
 
+            if (prepared) {
+                recordQueueTiming(prepared, queueStartedAt);
+                if (!isPlaybackPreparationCurrent(prepared)) return;
+            }
+
             if (!data || !Array.isArray(data.results)) {
                 throw new Error("Invalid response returned from `next` endpoint.");
             }
 
             if (!data.results.length) {
+                if (prepared) cancelPreparedPlayback(prepared);
                 Logger.dev("NO RESULTS LENGTH!!!");
                 this.getMoreLikeThis({ playlistId });
             } else {
@@ -514,20 +526,16 @@ export class ListService {
                     currentMixType: "playlist",
                 });
 
-                const playbackIndex =
-                    index === 0
-                        ? 0
-                        : this.findIndexForTrack({
-                            originalVideoId: videoId,
-                            originalPlaylistId: playlistId,
-                            mix: state.mix,
-                            originalIndex: index,
-                        }) ||
-                        index ||
-                        0;
+                const playbackIndex = this.findIndexForTrack({
+                    originalVideoId: videoId,
+                    originalPlaylistId: playlistId,
+                    mix: state.mix,
+                    originalIndex: index,
+                });
                 await this.updatePosition(playbackIndex);
                 Logger.mark("wow");
                 await tick();
+                if (prepared && !isPlaybackPreparationCurrent(prepared)) return;
                 syncTabs.updateSessionList(state);
                 if (groupSession?.initialized && groupSession?.hasActiveSession) {
                     groupSession.expAutoMix(state);
@@ -538,9 +546,11 @@ export class ListService {
                     playlistId,
                     undefined,
                     true,
+                    prepared?.videoId === state.mix[playbackIndex]?.videoId ? prepared : undefined,
                 )) as any;
             }
         } catch (err) {
+            if (prepared) cancelPreparedPlayback(prepared);
             Logger.err(err);
             notify("Error starting playlist playback.", "error");
         } finally {

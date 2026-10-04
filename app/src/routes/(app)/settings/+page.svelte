@@ -8,9 +8,20 @@
 	import { browser } from "$app/environment";
 	import Header from "$components/Layouts/Header.svelte";
 	import { APIClient } from "$lib/api";
-	import { AudioPlayer } from "$lib/player";
+	import { AudioPlayer, playbackTiming } from "$lib/player";
 	import { settings, type Theme } from "$stores/settings";
 	const themes: Theme[] = ["Dark", "Dim", "Midnight", "YTM"];
+	let diagnosticsMessage = "";
+	const milliseconds = (value: number | undefined) => value === undefined ? "Pending" : `${value} ms`;
+	async function copyPlaybackDiagnostics() {
+		if (!$playbackTiming) return;
+		try {
+			await navigator.clipboard.writeText(JSON.stringify($playbackTiming, null, 2));
+			diagnosticsMessage = "Playback diagnostics copied.";
+		} catch {
+			diagnosticsMessage = "Copy is unavailable. Select the report below to copy it.";
+		}
+	}
 
 	function handleStreamSelect() {
 		AudioPlayer.dispatch("update:stream_type", {
@@ -58,6 +69,26 @@
 />
 {#if browser}
 	<main class="resp-content-width">
+		<section class="playback-diagnostics">
+			<details>
+				<summary>Playback diagnostics</summary>
+				{#if $playbackTiming}
+					<dl>
+						<dt>Status</dt><dd>{$playbackTiming.phase}</dd>
+						<dt>Playback URL</dt><dd>{milliseconds($playbackTiming.metadataMs)}</dd>
+						<dt>Queue</dt><dd>{$playbackTiming.queueMs === undefined ? "Not requested" : milliseconds($playbackTiming.queueMs)}</dd>
+						<dt>Audio start</dt><dd>{milliseconds($playbackTiming.audioStartMs)}</dd>
+						<dt>Total</dt><dd>{milliseconds($playbackTiming.totalMs)}</dd>
+					</dl>
+					<p>Queue and URL requests may overlap. Audio start measures the time from assigning the URL to playback beginning.</p>
+					<button class="link" on:click={copyPlaybackDiagnostics}>Copy playback diagnostics</button>
+					<p role="status">{diagnosticsMessage}</p>
+					<pre>{JSON.stringify($playbackTiming, null, 2)}</pre>
+				{:else}
+					<p>Play a track to record startup timings.</p>
+				{/if}
+			</details>
+		</section>
 		<section>
 			<span class="h5">Appearance</span>
 			<div class="setting">
@@ -340,6 +371,13 @@
 {/if}
 
 <style lang="scss">
+	.playback-diagnostics {
+		summary { cursor: pointer; font-weight: 600; }
+		dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1rem; }
+		dd { margin: 0; font-variant-numeric: tabular-nums; }
+		p { line-height: 1.5; }
+		pre { max-width: 100%; overflow-x: auto; user-select: text; font-size: 0.8rem; }
+	}
 	.input-container {
 		min-width: 15ch !important;
 		max-width: 32ch !important;

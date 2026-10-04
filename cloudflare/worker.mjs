@@ -62,4 +62,25 @@ export default {
   }
 };
 
-const STARTING_PAGE = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="10"><title>Beatbump is starting</title><style>:root{color-scheme:dark light}body{font:16px system-ui;margin:0;min-height:100dvh;display:grid;place-items:center;background:light-dark(#f7f7fa,#101014);color:light-dark(#18181c,#eee)}main{max-width:32rem;padding:2rem}h1{font-size:1.6rem}p{line-height:1.6;color:light-dark(#555,#bbb)}a{color:#bd79ff}</style><main><h1>Beatbump is starting</h1><p>The music server is starting or being provisioned. This page retries every 10 seconds. The first deployment can take several minutes.</p><a href="">Retry now</a></main></html>`;
+const STARTING_PAGE = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="10"><title>Beatbump is starting</title><style>:root{color-scheme:dark light}body{font:16px system-ui;margin:0;min-height:100dvh;display:grid;place-items:center;background:light-dark(#f7f7fa,#101014);color:light-dark(#18181c,#eee)}main{max-width:32rem;padding:2rem}h1{font-size:1.6rem}p{line-height:1.6;color:light-dark(#555,#bbb)}a{color:#bd79ff}</style><main><h1>Beatbump is starting</h1><p>The music server is starting or being provisioned. This page checks readiness automatically. The first deployment can take several minutes.</p><a href="">Retry now</a></main><script>
+(() => {
+  let attempts = 0;
+  async function checkReady() {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    try {
+      const response = await fetch('/healthz', { cache: 'no-store', signal: controller.signal });
+      if (response.ok && (await response.json()).status === 'ready') {
+        location.reload();
+        return;
+      }
+    } catch {
+      // The page refresh remains a fallback if readiness cannot be checked.
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (++attempts < 30) setTimeout(checkReady, 1000);
+  }
+  void checkReady();
+})();
+</script></html>`;
