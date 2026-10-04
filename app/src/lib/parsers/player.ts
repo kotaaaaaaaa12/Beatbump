@@ -12,6 +12,8 @@ export interface PlayerFormats {
 
 /** Creates a new `redirector.googlevideo.com` URL */
 const createRedirectorURL = (url: string) => {
+	// Keep Cloudflare media tickets on this site's origin.
+	if (url.includes("/api/v1/media?ticket=")) return url;
 	let new_url: string | string[] = url.replace("https://", "").split("/");
 
 	new_url = new_url[2] !== undefined ? new_url[2] : new_url[1];

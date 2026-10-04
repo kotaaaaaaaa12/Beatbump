@@ -10,10 +10,10 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 const URL_BASE = "https://music.youtube.com/youtubei/v1/"
@@ -41,7 +41,7 @@ func Browse(browseId string, pageType PageType, params string,
 		data = innertubeRequest{
 			//RequestAttributes: additionalRequestAttributes,
 			Continuation: ctoken,
-			Context:  innertubeContext,
+			Context:      innertubeContext,
 			//ContentCheckOK: true,
 			//RacyCheckOk:    true,
 			BrowseEndpointContextMusicConfig: &BrowseEndpointContextMusicConfig{
@@ -217,7 +217,7 @@ func Next(videoId string, playlistId string, client ClientInfo, params Params) (
 }
 
 func Player(videoId string, playlistId string, client ClientInfo, params Params) ([]byte, error) {
-		
+
 	if companionBaseURL == "" {
 		return nil, errors.New("Missing companion base URL")
 	}
@@ -327,9 +327,6 @@ func doRequest(clientInfo ClientInfo, req *http.Request, requestPayload *innertu
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("API call failed with status %d \n  %s", resp.StatusCode, string(respBytes))
-		dump, _ := httputil.DumpRequestOut(req, true)
-		log.Println(string(dump))
-		log.Println(string(respBytes))
 		return nil, errors.New(resp.Status)
 	}
 
@@ -345,6 +342,7 @@ func getHttpClient() http.Client {
 	}
 	client := http.Client{
 		Transport: transport,
+		Timeout:   45 * time.Second,
 	}
 
 	return client
@@ -394,5 +392,3 @@ func prepareInnertubeContext(clientInfo ClientInfo, visitorData *string) inntert
 func strPtr(s string) *string {
 	return &s
 }
-
-

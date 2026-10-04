@@ -45,7 +45,16 @@ func PlayerEndpointHandler(c echo.Context) error {
 	}
 
 	if playerResponse.PlayabilityStatus.Status != "OK" {
-		return c.JSON(http.StatusInternalServerError, "Playability status is not OK: "+playerResponse.PlayabilityStatus.Status)
+		message := playerResponse.PlayabilityStatus.Reason
+		if message == "" {
+			message = "This track is unavailable: " + playerResponse.PlayabilityStatus.Status
+		}
+		status := http.StatusBadGateway
+		if strings.HasPrefix(message, "Companion is starting.") {
+			status = http.StatusServiceUnavailable
+			c.Response().Header().Set("Retry-After", "3")
+		}
+		return c.JSON(status, message)
 	}
 
 	if len(playerResponse.StreamingData.AdaptiveFormats) == 0 {
@@ -60,7 +69,7 @@ func PlayerEndpointHandler(c echo.Context) error {
 		}*/
 		streamUrl := format.URL
 
-		format.URL = strings.Clone(streamUrl)
+		format.URL = cloudMediaURL(c, streamUrl)
 	}
 
 	// Ongoing Listening Logic

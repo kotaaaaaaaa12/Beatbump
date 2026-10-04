@@ -128,6 +128,9 @@ func UpdateSettingsHandler(c echo.Context) error {
 	}
 
 	if req.DownloadPath != "" {
+		if os.Getenv("BEATBUMP_CLOUDFLARE") == "true" && req.DownloadPath != "/downloads" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Use /downloads for temporary server downloads."})
+		}
 		// Validate that the path exists and is a directory
 		info, err := os.Stat(req.DownloadPath)
 		if err != nil {

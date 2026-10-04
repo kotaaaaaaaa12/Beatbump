@@ -14,6 +14,7 @@ type PlayerResponse struct {
 	} `json:"responseContext"`
 	PlayabilityStatus struct {
 		Status          string `json:"status"`
+		Reason          string `json:"reason,omitempty"`
 		PlayableInEmbed bool   `json:"playableInEmbed"`
 		ContextParams   string `json:"contextParams"`
 	} `json:"playabilityStatus"`

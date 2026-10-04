@@ -1,81 +1,38 @@
 # syntax=docker/dockerfile:1
-# Use a multi-stage build for better image size
-FROM node:22.3.0 AS frontend-builder
+# Pin companion to keep upstream changes from silently altering playback.
+FROM quay.io/invidious/invidious-companion@sha256:63761efeecbcda4a9b581805259aedb991eae5ae033316dde31c1547aff29793 AS companion
 
+FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app
-
-ARG PORT
-ENV PORT=${PORT}
-
-ARG ALLOW_IFRAME
-ENV ALLOW_IFRAME=${ALLOW_IFRAME}
-ARG PUBLIC_ALLOW_THUMBNAIL_PROXY
-ENV PUBLIC_ALLOW_THUMBNAIL_PROXY=${PUBLIC_ALLOW_THUMBNAIL_PROXY}
-ARG SERVER_DOMAIN
-ENV SERVER_DOMAIN=${SERVER_DOMAIN}
-
-# install dependencies
-COPY /app/package.json /app/package-lock.json ./
-
+COPY app/package.json app/package-lock.json ./
 RUN npm ci --legacy-peer-deps
+COPY app/ ./
+ENV VITE_SERVER_DOMAIN="" VITE_DONATION_URL="" BB_ADAPTER="staticadapter"
+RUN npm exec svelte-kit sync && npm run build
 
-# copy local files to image
-COPY /app .
-
-RUN npm exec svelte-kit sync
-RUN npm run build
-
-FROM golang:1.21.0 AS backend-builder
-
-# Set destination for COPY
-WORKDIR /app
-
-# Download Go modules
+FROM golang:1.27.1-bookworm AS backend-builder
+WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-
-# Copy the source code. Note the slash at the end, as explained in
-# https://docs.docker.com/engine/reference/builder/#copy
-COPY backend /app/backend
+COPY backend/ ./backend/
 COPY *.go ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /beat-server .
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux go build -o /beat-server
-
-# Stage to get CA certificates
-FROM alpine:latest AS certs
-RUN apk --no-cache add ca-certificates
-
-# Stage to get ffmpeg
-FROM alpine:latest AS ffmpeg-builder
-RUN apk --no-cache add ffmpeg
-
-# Final stage - use scratch
-FROM scratch
-
+FROM debian:13-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 ffmpeg tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 10001 --create-home --shell /usr/sbin/nologin beatbump \
+    && mkdir -p /app/config /data /downloads /var/tmp/youtubei.js \
+    && chown -R beatbump:beatbump /app /data /downloads /var/tmp/youtubei.js
 WORKDIR /app
-
-# Copy CA certificates from certs stage
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy ffmpeg from ffmpeg-builder stage
-COPY --from=ffmpeg-builder /usr/bin/ffmpeg /usr/bin/ffmpeg
-COPY --from=ffmpeg-builder /usr/bin/ffprobe /usr/bin/ffprobe
-
-# Copy ffmpeg dependencies
-COPY --from=ffmpeg-builder /lib/ld-musl-x86_64.so.1 /lib/
-COPY --from=ffmpeg-builder /usr/lib /usr/lib
-
-# Copy application files
+COPY --from=companion /app/invidious_companion /app/invidious_companion
 COPY --from=backend-builder /beat-server /app/beat-server
 COPY --from=frontend-builder /app/build /app/build
-
-# Optional:
-# To bind to a TCP port, runtime parameters must be supplied to the docker command.
-# But we can document in the Dockerfile what ports
-# the application is going to listen on by default.
-# https://docs.docker.com/engine/reference/builder/#expose
+COPY cloudflare/supervisor.py /app/supervisor.py
+ENV BEATBUMP_DB_PATH=/data COMPANION_URL=http://127.0.0.1:8282 \
+    HOST=127.0.0.1 PORT=8282 SERVER_BASE_PATH=/companion \
+    CACHE_DIRECTORY=/var/tmp NETWORKING_FETCH_TIMEOUT_MS=30000 \
+    PYTHONUNBUFFERED=1 BEATBUMP_CLOUDFLARE=true
+USER beatbump
 EXPOSE 8080
-
-# Run
-ENTRYPOINT ["/app/beat-server"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "python3", "/app/supervisor.py"]

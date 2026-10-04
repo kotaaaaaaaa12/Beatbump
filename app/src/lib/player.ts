@@ -785,24 +785,30 @@ export const getSrc = async (
 		return setTrack(formats, true);
 	}
 
-	const res = await APIClient.fetch(`/api/v1/player.json?videoId=${videoId}&playlistId=${playlistId}&playerParams=${params}`).then((response) => {
-		if (!response.ok) {
-			return response.text().then(message => {
-				throw new Error(message); // Throw a new error with the response text
-			});
+	let res: any;
+	try {
+		// A freshly started companion may still be preparing its YouTube session.
+		for (let attempt = 0; attempt < 10; attempt++) {
+			const response = await APIClient.fetch(`/api/v1/player.json?videoId=${videoId}&playlistId=${playlistId}&playerParams=${params}`);
+			if (response.status === 503 && attempt < 9) {
+				await new Promise(resolve => setTimeout(resolve, 3000));
+				continue;
+			}
+			if (!response.ok) {
+				const message = await response.text();
+				throw new Error(message || "Unable to start playback. Please try again.");
+			}
+			res = await response.json();
+			break;
 		}
-		return response.json();
-	})
-		.catch((message) => {
-			console.error(message);
-			return message;
-		});
+	} catch (error) {
+		return handleError(error instanceof Error ? error.message : "Unable to start playback.");
+	}
+
 	if (
-        !res || res instanceof Error ||(res &&
-			!res?.streamingData &&
-			res?.playabilityStatus?.status === "UNPLAYABLE")
+        !res?.streamingData?.adaptiveFormats?.length || res?.playabilityStatus?.status !== "OK"
 	) {
-		return handleError(res.message);
+		return handleError(res?.playabilityStatus?.reason || res?.message || "No playable audio was returned.");
 	}
 	const formats = sort({
 		data: res,

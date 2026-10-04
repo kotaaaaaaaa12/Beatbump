@@ -4,6 +4,7 @@ import (
 	"beatbump-server/backend/api"
 	"beatbump-server/backend/api/downloader"
 	"beatbump-server/backend/db"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -14,10 +15,20 @@ func main() {
 	downloader.StartWorker()
 
 	e := echo.New()
+	e.JSONSerializer = api.CloudJSONSerializer{}
+	e.GET("/healthz", api.CloudHealthHandler)
+	e.GET("/api/v1/media", api.CloudMediaHandler)
+	e.HEAD("/api/v1/media", api.CloudMediaHandler)
+	e.GET("/api/v1/image", api.CloudImageHandler)
+	e.HEAD("/api/v1/image", api.CloudImageHandler)
 
 	e.Use(middleware.CORS())
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{Format: "${method} ${path} ${status} ${latency_human}\n"}))
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Skipper: func(c echo.Context) bool {
+			path := c.Request().URL.Path
+			return strings.HasPrefix(path, "/api/") || path == "/healthz"
+		},
 		Root:       "./build",
 		Browse:     true,
 		IgnoreBase: true,
