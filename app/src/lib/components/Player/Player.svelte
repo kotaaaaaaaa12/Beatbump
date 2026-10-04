@@ -108,7 +108,7 @@
 	import { SITE_ORIGIN_URL } from "$stores/url";
 	import PlayerButton from "./PlayerButton.svelte";
 
-	const { paused, volume: AudioPlayerVolume } = AudioPlayer;
+	const { paused, loading: audioLoading, volume: AudioPlayerVolume } = AudioPlayer;
 
 	$: volume = $AudioPlayerVolume;
 	let volumeHover = false;
@@ -212,7 +212,7 @@
 		{#if !$isMobileMQ}
 			<Controls
 				bind:isPaused={isPlaying}
-				bind:loading={$playerLoading}
+				loading={$playerLoading || $audioLoading}
 				on:play={() => AudioPlayer.play()}
 				pause={() => AudioPlayer.pause()}
 				nextBtn={() => {

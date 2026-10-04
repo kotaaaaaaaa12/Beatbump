@@ -73,7 +73,16 @@ export function sort({
 		(data?.streamingData?.hlsManifestUrl as string);
 
 	let video = "";
-    let duration = -1;
+	const seconds = Number(data?.videoDetails?.lengthSeconds);
+	const trackDuration = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
+	let audioDuration: number | undefined;
+	let selectedAudio = false;
+	const captureAudioDuration = (raw: string) => {
+		if (selectedAudio) return;
+		selectedAudio = true;
+		const value = Number(raw);
+		if (Number.isFinite(value) && value > 0) audioDuration = value;
+	};
 
 	const arr = filterMap<
 		Record<string, string>,
@@ -87,9 +96,6 @@ export function sort({
 			const url = new URL(item.url);
 			const itag = parseInt(item.itag.toString());
 
-            if (duration === -1 && item?.approxDurationMs) {
-                duration = parseInt(item.approxDurationMs)
-            }
 
 			if (!video && YOUTUBE_MP4_VIDEO_ONLY_ITAGS.includes(itag)) {
 				if (video) return null;
@@ -97,13 +103,16 @@ export function sort({
 				return null;
 			}
 
-			if (WebM === true && itag === 251)
+			if (WebM === true && itag === 251) {
+				captureAudioDuration(item.approxDurationMs);
 				return {
 					original_url: url.toString(),
 					url: createRedirectorURL(item.url),
 					mimeType: "webm",
 				};
+			}
 			if (itag === 140) {
+				captureAudioDuration(item.approxDurationMs);
 				return {
 					original_url: url.toString(),
 					url: url.toString(),
@@ -113,7 +122,11 @@ export function sort({
 		},
 		(it) => !!it,
 	);
-	// Logger.log(`[LOG:STREAM-URLS]: `, arr);
+	// Prefer the selected audio's precise duration when it agrees with track metadata.
+	// An unselected format must never determine the audio timeline.
+	const duration = trackDuration === undefined ? audioDuration ?? -1
+		: audioDuration !== undefined && Math.abs(audioDuration - trackDuration) <= 2000
+			? audioDuration : trackDuration;
 	return {
 		hls,
 		dash: dash_manifest,

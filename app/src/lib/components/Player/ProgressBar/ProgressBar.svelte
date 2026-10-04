@@ -1,122 +1,58 @@
-<script
-	context="module"
-	lang="ts"
->
+<script context="module" lang="ts">
+	import { writable } from "svelte/store";
 	export const progressBarSeek = writable<number>(0);
 </script>
 
 <script lang="ts">
-	import { expoIn, sineIn } from "svelte/easing";
-	import { fade } from "svelte/transition";
-
 	import { AudioPlayer } from "$lib/player";
 	import { format } from "$lib/utils";
 	import { createEventDispatcher } from "svelte";
-	import { writable } from "svelte/store";
 
 	const { currentTimeStore, durationStore } = AudioPlayer;
-
 	const dispatch = createEventDispatcher<{ seek: number }>();
+	let scrubbing = false;
+	let preview = 0;
+	$: duration = Number.isFinite($durationStore) && $durationStore > 0 ? $durationStore : 0;
+	$: position = Math.min(duration, Math.max(0, scrubbing ? preview : $currentTimeStore));
 
-	let isTouchDrag = false;
-	let seeking = false;
-	let hovering = false;
-	let hoverWidth: number;
-	let songBar: HTMLElement;
-
-	function trackMouse(event: PointerEvent) {
-		if (seeking) seekAudio(event);
-		if (hovering) hoverEvent(event);
+	function previewSeek(event: Event) {
+		scrubbing = true;
+		preview = Number((event.currentTarget as HTMLInputElement).value);
 	}
-
-	function seek(event: PointerEvent, bounds: DOMRect) {
-		let x = event.clientX - bounds.left;
-
-		return Math.min(Math.max(x / bounds.width, 0), 1);
+	function commitSeek(event: Event) {
+		const target = Number((event.currentTarget as HTMLInputElement).value);
+		AudioPlayer.seek(target);
+		progressBarSeek.set(target);
+		dispatch("seek", target);
+		scrubbing = false;
 	}
-
-	function hoverEvent(event: PointerEvent) {
-		if (!songBar) return;
-		hoverWidth = hover(event, songBar.getBoundingClientRect());
-	}
-
-	function hover(event: PointerEvent, bounds: DOMRect) {
-		const x = event.clientX - bounds.left;
-		return Math.min(Math.max(x / bounds.width, 0), 1);
-	}
-
-	function seekAudio(event: PointerEvent) {
-		if (!songBar) return;
-
-		const seekTime =
-			seek(event, songBar.getBoundingClientRect()) * $durationStore;
-		AudioPlayer.seek(seekTime);
-
-		progressBarSeek.set(seekTime);
-	}
-
-	$: $progressBarSeek && dispatch("seek", $progressBarSeek);
 </script>
 
-<svelte:window
-	on:pointerup={() => (seeking = false)}
-	on:pointermove={trackMouse}
-/>
 <div class="progress-container">
-	<span class="timestamp secondary">{format($currentTimeStore)}</span>
+	<span class="timestamp secondary">{format(position)}</span>
 	<div class="progress-bar-wrapper">
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div
-			class="progress-bar"
-			transition:fade|global
-			on:pointerover={() => {
-				hovering = true;
-			}}
-			on:pointerup
-			on:click|stopPropagation|capture={seekAudio}
-			on:pointerdown|stopPropagation|capture={seekAudio}
-			on:touchstart={() => {
-				isTouchDrag = true;
-			}}
-			on:pointerleave={() => {
-				hovering = false;
-			}}
-		>
-			{#if hovering}
-				<div
-					class="hover"
-					in:fade|global={{ duration: 180, delay: 0, easing: expoIn }}
-					out:fade|global={{ duration: 240, delay: 120, easing: sineIn }}
-					style="transform:scaleX({hoverWidth});"
-				/>
-			{/if}
-			<progress
-				on:touchstart={() => {
-					seeking = true;
-					hovering = false;
-				}}
-				on:pointerdown={() => {
-					seeking = true;
-					hovering = false;
-				}}
-				on:pointerup={() => {
-					seeking = false;
-					hovering = false;
-				}}
-				class:isTouchDrag
-				bind:this={songBar}
-				value={$currentTimeStore}
-				max={$durationStore}
+		<div class="progress-bar">
+			<progress value={position} max={duration || 1} aria-hidden="true" />
+			<input
+				class="seek-control"
+				type="range"
+				aria-label="Seek playback"
+				aria-valuetext="{format(position)} of {format(duration)}"
+				min="0"
+				max={duration || 1}
+				step="0.1"
+				value={position}
+				disabled={duration === 0}
+				on:input={previewSeek}
+				on:change={commitSeek}
+				on:click|stopPropagation
+				on:pointerdown|stopPropagation
+				on:pointercancel={() => (scrubbing = false)}
+				on:blur={() => (scrubbing = false)}
 			/>
 		</div>
 	</div>
-
-	<span class="timestamp secondary">{format($durationStore)}</span>
+	<span class="timestamp secondary">{format(duration)}</span>
 </div>
 
-<style
-	src="./index.scss"
-	lang="scss"
->
-</style>
+<style src="./index.scss" lang="scss"></style>

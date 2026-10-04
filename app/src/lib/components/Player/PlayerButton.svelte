@@ -5,7 +5,7 @@
 	import { playerLoading } from "$lib/stores";
 	import { queue } from "$lib/stores/list";
 	import Icon from "../Icon/Icon.svelte";
-	const { paused } = AudioPlayer;
+	const { paused, loading: audioLoading } = AudioPlayer;
 
 	$: isPaused = $paused;
 	$: console.log(isPaused);
@@ -21,15 +21,17 @@
 	}
 </script>
 
-<div
+<button
+	type="button"
 	class="player-btn player-title"
+	aria-label={$playerLoading || $audioLoading ? "Cancel loading" : isPaused ? "Play" : "Pause"}
+	aria-busy={$playerLoading || $audioLoading}
 	on:click|capture|stopPropagation={handleButtonPress}
-	on:keydown|capture|stopPropagation={handleButtonPress}
 >
-	{#if $playerLoading}
+	{#if $playerLoading || $audioLoading}
 		<div
 			class="player-spinner"
-			class:fade-out={$playerLoading ? true : false}
+			class:fade-out={true}
 		/>
 	{:else if isPaused}
 		<Icon
@@ -44,8 +46,25 @@
 			size={"1.625rem"}
 		/>
 	{/if}
-</div>
+</button>
 
 <style lang="scss">
 	@import "../../../global/stylesheet/components/_player.scss";
+	button {
+		background: transparent;
+		border: 0;
+		color: inherit;
+		padding: 0;
+	}
+	.player-spinner {
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 3px solid rgb(255 255 255 / 26%);
+		border-top-color: white;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
 </style>

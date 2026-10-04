@@ -28,7 +28,7 @@ export interface IEventHandler {
 	onEvent<K extends keyof HTMLElementEventMap>(type: K, cb: Callback<K>): void;
 }
 
-type SrcDict = { original_url: string; url: string; video_url?: string; duration?: number };
+type SrcDict = { original_url: string; url: string; video_url?: string; duration?: number; autoplay?: boolean };
 
 interface AudioPlayerEvents {
 	play: unknown;
@@ -256,6 +256,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	private _durationStore = new WritableStore<number>(0);
 	private _volumeStore = new WritableStore<number>(0);
 	private _paused = writable(true);
+	private _loading = writable(false);
 	private _progress = tweened<number>(0);
 	private _mode = new WritableStore<"audio" | "video">("audio");
 	private _leechInterval: ReturnType<typeof setWorkerInterval> | null = null;
@@ -299,6 +300,9 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	private pendingPosition: number | undefined;
 	private playRequested = false;
 	private sourceRevision = 0;
+	private contentDuration: number | undefined;
+	private resolvingTrack = false;
+	private nextWarmAt = 0;
 	private playerKind: "hls" | "html5" = "html5";
 	private declare unsubscriber: () => void;
 	constructor() {
@@ -369,6 +373,27 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	public get paused() {
 		return this._paused;
 	}
+	public get loading() {
+		return this._loading;
+	}
+	public get playbackRequested() {
+		return this.playRequested;
+	}
+	public prepareTrack() {
+		this.resolvingTrack = true;
+		this.contentDuration = undefined;
+		this.playRequested = true;
+		this._paused.set(false);
+		this._loading.set(true);
+		// Do not offer a seek range from the previous track while resolving this one.
+		this._durationStore.set(0);
+	}
+	public trackLookupFailed() {
+		this.resolvingTrack = false;
+		this._loading.set(false);
+		this.playRequested = !!this.player && !this.player.paused;
+		this._paused.set(!this.playRequested);
+	}
 
 	public get progress() {
 		return this._progress;
@@ -404,6 +429,8 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 
 	public pause() {
 		this.playRequested = false;
+		this._loading.set(false);
+		this._paused.set(true);
 		this.capturePosition();
 		syncTabs.playback({
 			state: "pause",
@@ -427,6 +454,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 
 	public play() {
 		this.playRequested = true;
+		this._paused.set(false);
 		if (!this.player) {
 			this.addTaskToTaskQueue("play");
 			return;
@@ -451,11 +479,16 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 				} as ConnectionState,
 			});
 		}
+		this._loading.set(this.player.readyState < 3 || this.pendingPosition !== undefined);
 		if (!this.restorePosition()) return;
+		const revision = this.sourceRevision;
 		const promise = this.player.play();
 		if (promise) {
 			promise
 				.catch((e) => {
+					if (revision !== this.sourceRevision || e.name === "AbortError") return;
+					this.playRequested = false;
+					this._loading.set(false);
 					this._paused.set(this.player.paused);
 					console.error("Playback could not resume", e);
 				});
@@ -465,13 +498,20 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	public seek(to: number, fast = false) {
 		if (!this.player || !Number.isFinite(to)) return;
 		if (to < this.durationStore.value / 2) this.setStaleTimeout();
-		const duration = this.player.duration;
-		const position = Math.max(0, Number.isFinite(duration) ? Math.min(to, duration) : to);
+		const duration = this.contentDuration ?? this.player.duration;
+		const position = Math.max(0, Number.isFinite(duration) && duration > 0 ? Math.min(to, duration) : to);
 		// An explicit seek, including seek-to-zero, replaces any recovery checkpoint.
-		this.pendingPosition = undefined;
+		this.pendingPosition = position;
 		this.lastPosition = position;
-		if (fast && typeof this.player.fastSeek === "function") this.player.fastSeek(position);
-		else this.player.currentTime = position;
+		if (this.player.readyState >= 1) {
+			try {
+				if (fast && typeof this.player.fastSeek === "function") this.player.fastSeek(position);
+				else this.player.currentTime = position;
+				if (Math.abs(this.player.currentTime - position) < 0.5) this.pendingPosition = undefined;
+			} catch {
+				// Apply this seek after metadata arrives instead of losing the requested position.
+			}
+		}
 		this._currentTimeStore.set(position);
 		this._progress.set(position, { duration: 10 });
 		setPosition(position, this.duration);
@@ -531,19 +571,24 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		videoUrl,
 		duration,
 		preservePosition = false,
+		autoplay = true,
 	}: {
+		autoplay?: boolean;
 		preservePosition?: boolean;
 		videoUrl?: string;
 		url: string;
 		duration?: number;
 	}) {
 		if (url === undefined) return;
+		this.resolvingTrack = false;
 		const checkpoint = preservePosition ? this.lastPosition : 0;
 		this.sourceRevision++;
 		this.lastPosition = checkpoint;
 		this.pendingPosition = checkpoint > 0 ? checkpoint : undefined;
 		this._currentTimeStore.set(checkpoint);
-		this.playRequested = true;
+		this.playRequested = autoplay;
+		this._paused.set(!autoplay);
+		this._loading.set(autoplay);
 
 		if (videoUrl && this.videoPlayer) {
 			this.videoPlayer.src = videoUrl;
@@ -555,18 +600,15 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 			this.player.src = url;
 		}
 
-        if (duration != undefined && duration != -1){
-			this._durationStore.set(duration / 1000);
-			setPosition(
-				checkpoint,
-				duration / 1000,
-			);
-		} else {
-			this._durationStore.set(0);
-		}
+		this.contentDuration = duration !== undefined && Number.isFinite(duration) && duration > 0
+			? duration / 1000 : undefined;
+		this._durationStore.set(this.contentDuration ?? 0);
+		setPosition(checkpoint, this.duration);
 
 		this.nextSrc.url = undefined;
 		this.setStaleTimeout();
+		// Request playback as soon as the URL is assigned, without a metadata gate.
+		if (autoplay) this.play();
 	}
 
 	private addTaskToTaskQueue(name: keyof AudioPlayerImpl, ...args: unknown[]) {
@@ -615,9 +657,10 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 			SessionListService.$.value.position >=
 			SessionListService.$.value.mix.length - 1
 		) {
-			await SessionListService.updatePosition(1);
-			await SessionListService.previous();
-			return true;
+			const first = SessionListService.$.value.mix[0];
+			await SessionListService.updatePosition(0);
+			if (first) await getSrc(first.videoId, first.playlistId, undefined, true);
+			return false;
 		} else if (this._repeat === "track") {
 			return false;
 		}
@@ -676,9 +719,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 				this.player.currentTime === 0) this.pendingPosition = this.lastPosition;
 			this.restorePosition();
 			this.capturePosition();
-			if (Number.isFinite(this.player.duration) && this.player.duration > 0) {
-				this._durationStore.set(this.player.duration);
-			}
+			this.refreshDuration();
 			if (this.videoNode) {
 				loadVideo(this.videoNode).then(() => {
 					if (revision !== this.sourceRevision || !this.videoNode) return;
@@ -707,80 +748,103 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		});
 		this.onEvent("durationchange", () => {
 			this.restorePosition();
-			if (Number.isFinite(this.player.duration) && this.player.duration > 0)
-				this._durationStore.set(this.player.duration);
+			this.refreshDuration();
 		});
 		this.onEvent("play", () => {
+			if (this.player.paused) return;
 			this.playRequested = true;
 			this._paused.set(false);
 			if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
 		});
+		this.onEvent("playing", () => {
+			this._loading.set(false);
+			this.warmNextTrack();
+		});
+		this.onEvent("waiting", () => this._loading.set(this.playRequested));
+		this.onEvent("stalled", () => this._loading.set(this.playRequested));
 		this.onEvent("pause", () => {
-			// Loading a new source also emits pause before its metadata is ready.
-			if (this.player.readyState > 0) this.playRequested = false;
+			// Finishing the previous source can queue pause while the next URL resolves.
+			// Explicit pause() already clears the intent, including during that lookup.
+			if (this.player.readyState > 0 && !this.resolvingTrack) this.playRequested = false;
 			this.capturePosition();
-			this._paused.set(true);
+			this._paused.set(!this.playRequested);
+			if (!this.playRequested) this._loading.set(false);
 			if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
 		});
 
 		this.onEvent("seeked", () => {
+			this.capturePosition();
+			if (this.player.readyState >= 3) this._loading.set(false);
 			if (this.videoPlayer && this._mode.value === "video") {
 				this.videoPlayer.currentTime = this.player.currentTime;
 			}
 		});
 
 
+		// Native completion and the validated content boundary share one transition lock.
+		const finishTrack = async () => {
+			if (locked || this.resolvingTrack || this.pendingPosition !== undefined) return;
+			this.lastPosition = 0;
+			locked = true;
+			try {
+				if (this._repeat === "track") {
+					this.seek(0);
+					this.play();
+					return;
+				}
+				// Stop a padded stream at its content boundary before resolving the next track.
+				this.player.pause();
+				if (this._repeat !== "off") {
+					const allowContinuation = await this.handleRepeat();
+					if (allowContinuation === false) {
+						return;
+					}
+				}
+
+				if (groupSession.initialized) {
+					return await Promise.resolve(
+						updateGroupState({
+							client: groupSession.client.clientId,
+							state: {
+								finished: true,
+								paused: true,
+								playing: false,
+								pos: SessionListService.position,
+								stalled: !!this.player.error,
+							} as ConnectionState,
+						}),
+					).then(() => {
+						const [allCanPlay, fn] = groupSession.allCanPlay();
+						if (allCanPlay) {
+							fn();
+							locked = false;
+						}
+					});
+				}
+				if (groupSession.hasActiveSession && !groupSession.allCanPlay) return;
+				return await SessionListService.next(this.nextSrc.url).finally(() => {
+					locked = false; // Unlock this 'if' block when finished
+					this.nextSrc.url = undefined; // Set to undefined since e 'used' the value
+				});
+			} finally {
+				locked = false;
+				this.nextSrc.url = undefined; // Set to undefined since e 'used' the value
+			}
+		};
+		this.onEvent("ended", () => {
+			if (this.player.ended) void finishTrack().catch(console.error);
+		});
 		this.onEvent("timeupdate", () => {
 			if (!this.restorePosition()) return;
 			this.capturePosition();
 			setPosition(this.currentTime, this.duration);
-		});
-
-		// Estimates and interrupted timeupdate events are not evidence of track completion.
-		this.onEvent("ended", async () => {
-			if (!this.player.ended || locked || this.pendingPosition !== undefined) return;
-			this.lastPosition = 0;
-			locked = true;
-			{
-				try {
-					if (this._repeat !== "off") {
-						const allowContinuation = await this.handleRepeat();
-						if (allowContinuation === false) {
-							return;
-						}
-					}
-
-					if (groupSession.initialized) {
-						return await Promise.resolve(
-							updateGroupState({
-								client: groupSession.client.clientId,
-								state: {
-									finished: true,
-									paused: true,
-									playing: false,
-									pos: SessionListService.position,
-									stalled: !!this.player.error,
-								} as ConnectionState,
-							}),
-						).then(() => {
-							const [allCanPlay, fn] = groupSession.allCanPlay();
-							if (allCanPlay) {
-								fn();
-								locked = false;
-							}
-						});
-					}
-					if (groupSession.hasActiveSession && !groupSession.allCanPlay) return;
-					return await SessionListService.next(this.nextSrc.url).finally(() => {
-						locked = false; // Unlock this 'if' block when finished
-						this.nextSrc.url = undefined; // Set to undefined since e 'used' the value
-					});
-				} finally {
-					locked = false;
-					this.nextSrc.url = undefined; // Set to undefined since e 'used' the value
-				}
+			if (this.duration > 0 && this.duration - this.currentTime <= 20) this.warmNextTrack();
+			if (this.contentDuration !== undefined && this.player.currentTime >= this.contentDuration &&
+				!this.player.paused && !this.player.seeking && !this.player.error) {
+				void finishTrack().catch(console.error);
 			}
 		});
+
 
 		this.onEvent("error", () => {
 			if (
@@ -789,6 +853,9 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 			) return;
 
 			console.error(this.player.error);
+			this._loading.set(false);
+			this._paused.set(this.player.paused);
+			playerLookups.clear();
 
             handleError(this.player.error.message+" (ensure you have updated cookie/oauth details)");
 		});
@@ -816,6 +883,31 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		this.player.addEventListener(name, callback);
 	}
 
+	private refreshDuration() {
+		if (this.resolvingTrack) return;
+		if (this.contentDuration !== undefined) {
+			this._durationStore.set(this.contentDuration);
+		} else if (Number.isFinite(this.player.duration) && this.player.duration > 0) {
+			this._durationStore.set(this.player.duration);
+		}
+	}
+
+	private warmNextTrack() {
+		if (Date.now() < this.nextWarmAt) return;
+		if (this._repeat === "track") return;
+		const state = SessionListService.$.value;
+		const next = state.mix[state.position + 1];
+		if (!next) {
+			if (this._repeat === "playlist") return;
+			this.nextWarmAt = Date.now() + 10_000;
+			void SessionListService.prefetchNextTrack().catch(() => {});
+			return;
+		}
+		if (!next.videoId || next.localUrl) return;
+		this.nextWarmAt = Date.now() + 10_000;
+		void resolvePlayer(next.videoId, next.playlistId).catch(() => {});
+	}
+
 	private setStaleTimeout() {
 		if (this.invalidationTimer) clearTimeout(this.invalidationTimer);
 
@@ -831,9 +923,71 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 
 export const AudioPlayer = new AudioPlayerImpl();
 
+// Bound metadata reuse by the signed stream's expiry, so longer tracks can use prefetching.
+function metadataExpiry(data: any) {
+	const now = Date.now();
+	const audio = data.streamingData.adaptiveFormats.find((format: any) => Number(format.itag) === 140);
+	try {
+		let url = new URL(audio.url, location.href);
+		const ticket = url.searchParams.get("ticket");
+		if (ticket) {
+			const payload = ticket.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+			url = new URL(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, "=")));
+		}
+		const expiry = Number(url.searchParams.get("expire")) * 1000;
+		if (Number.isFinite(expiry) && expiry > now)
+			return Math.min(now + 10 * 60_000, expiry - 30_000);
+	} catch {
+		// Unknown sources keep the conservative one-minute lifetime.
+	}
+	return now + 60_000;
+}
+
+// Short-lived, bounded metadata cache; concurrent requests share one lookup.
+const playerLookups = new Map<string, { expires: number; promise: Promise<any> }>();
+function resolvePlayer(videoId: string, playlistId?: string, params?: string): Promise<any> {
+	const key = JSON.stringify([videoId, playlistId, params]);
+	const existing = playerLookups.get(key);
+	if (existing && existing.expires > Date.now()) return existing.promise;
+	const entry = { expires: Infinity, promise: Promise.resolve<any>(undefined) };
+	entry.promise = (async () => {
+		for (let attempt = 0; attempt < 30; attempt++) {
+			const query = new URLSearchParams({ videoId });
+			if (playlistId) query.set("playlistId", playlistId);
+			if (params) query.set("playerParams", params);
+			const response = await APIClient.fetch(`/api/v1/player.json?${query}`);
+			if (response.status === 503 && attempt < 29) {
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				continue;
+			}
+			if (!response.ok) throw new Error((await response.text()) || "Unable to start playback. Please try again.");
+			const data = await response.json();
+			if (!data?.streamingData?.adaptiveFormats?.length || data?.playabilityStatus?.status !== "OK")
+				throw new Error(data?.playabilityStatus?.reason || data?.message || "No playable audio was returned.");
+			if (data.videoDetails?.videoId && data.videoDetails.videoId !== videoId)
+				throw new Error("The audio service returned a different track. Please try again.");
+			entry.expires = metadataExpiry(data);
+
+			return data;
+		}
+	})().catch(error => {
+		if (playerLookups.get(key) === entry) playerLookups.delete(key);
+		throw error;
+	});
+	playerLookups.set(key, entry);
+	if (playerLookups.size > 8) playerLookups.delete(playerLookups.keys().next().value!);
+	return entry.promise;
+}
+let playbackRequest = 0;
+
+/** Prepare a source without changing playback or displaying an error for optional prefetch. */
+export function prefetchSource(videoId: string, playlistId?: string) {
+	return resolvePlayer(videoId, playlistId);
+}
+
 /** Updates the current track for the audio player */
-export function updatePlayerSrc({ url, video_url,duration }: SrcDict): void {
-	AudioPlayer.updateSrc({ url, videoUrl: video_url,duration });
+export function updatePlayerSrc({ url, video_url, duration, autoplay }: SrcDict): void {
+	AudioPlayer.updateSrc({ url, videoUrl: video_url, duration, autoplay });
 }
 
 // Get source URLs
@@ -849,6 +1003,8 @@ export const getSrc = async (
 	}
 	| undefined
 > => {
+	const request = shouldAutoplay ? ++playbackRequest : undefined;
+	if (shouldAutoplay) AudioPlayer.prepareTrack();
 
 	const currentTrack = SessionListService.value.mix.find(t => t.videoId === videoId);
 	if (currentTrack?.localUrl) {
@@ -859,44 +1015,30 @@ export const getSrc = async (
 			video: "",
 			duration: -1
 		}
-		return setTrack(formats, true);
+		return setTrack(formats, shouldAutoplay, AudioPlayer.playbackRequested);
 	}
 
 	let res: any;
 	try {
-		// A freshly started companion may still be preparing its YouTube session.
-		for (let attempt = 0; attempt < 30; attempt++) {
-			const response = await APIClient.fetch(`/api/v1/player.json?videoId=${videoId}&playlistId=${playlistId}&playerParams=${params}`);
-			if (response.status === 503 && attempt < 29) {
-				await new Promise(resolve => setTimeout(resolve, 1000));
-				continue;
-			}
-			if (!response.ok) {
-				const message = await response.text();
-				throw new Error(message || "Unable to start playback. Please try again.");
-			}
-			res = await response.json();
-			break;
-		}
+		res = await resolvePlayer(videoId || "", playlistId, params);
 	} catch (error) {
+		if (request !== undefined && request !== playbackRequest) return;
+		if (shouldAutoplay) AudioPlayer.trackLookupFailed();
 		return handleError(error instanceof Error ? error.message : "Unable to start playback.");
 	}
+	// A slow lookup for an earlier selection must not replace a more recent track.
+	if (request !== undefined && request !== playbackRequest) return;
 
-	if (
-        !res?.streamingData?.adaptiveFormats?.length || res?.playabilityStatus?.status !== "OK"
-	) {
-		return handleError(res?.playabilityStatus?.reason || res?.message || "No playable audio was returned.");
-	}
 	const formats = sort({
 		data: res,
 		dash: false,
 	});
 
-	const src = setTrack(formats, shouldAutoplay);
+	const src = setTrack(formats, shouldAutoplay, AudioPlayer.playbackRequested);
 	return src;
 }
 
-function setTrack(formats: PlayerFormats, shouldAutoplay: boolean) {
+function setTrack(formats: PlayerFormats, shouldAutoplay: boolean, autoplay = true) {
 	let format = undefined;
 	if (userSettings?.playback?.Stream === "HLS") {
 		format = { original_url: formats?.hls || "", url: formats.hls || "" };
@@ -908,8 +1050,13 @@ function setTrack(formats: PlayerFormats, shouldAutoplay: boolean) {
 			video_url: formats.video,
 			original_url: format.original_url,
 			url: format.url,
-			duration: formats.duration
+			duration: formats.duration,
+			autoplay
 		});
+	if (!format && shouldAutoplay) {
+		AudioPlayer.trackLookupFailed();
+		return handleError("No supported audio format was returned for this track.");
+	}
 	return {
 		body: format
 			? { original_url: format.original_url, url: format.url }

@@ -50,6 +50,7 @@
 
 	const {
 		paused,
+		loading: audioLoading,
 		currentTimeStore: currentTime,
 		videoUrlStore: videoUrl,
 		mode,
@@ -485,7 +486,7 @@
 					<Controls
 						sizes={{ main: "2.75em", skip: "1.75em" }}
 						bind:isPaused={isPlaying}
-						bind:loading={$playerLoading}
+						loading={$playerLoading || $audioLoading}
 						on:play={() => AudioPlayer.play()}
 						isQueue={true}
 						pause={() => AudioPlayer.pause()}
