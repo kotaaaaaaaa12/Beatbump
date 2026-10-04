@@ -52,7 +52,7 @@ func PlayerEndpointHandler(c echo.Context) error {
 		status := http.StatusBadGateway
 		if strings.HasPrefix(message, "Companion is starting.") {
 			status = http.StatusServiceUnavailable
-			c.Response().Header().Set("Retry-After", "3")
+			c.Response().Header().Set("Retry-After", "1")
 		}
 		return c.JSON(status, message)
 	}

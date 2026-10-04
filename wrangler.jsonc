@@ -5,7 +5,7 @@
   "workers_dev": true, "observability": { "enabled": true },
   "containers": [{
     "class_name": "BeatbumpContainer", "image": "./Dockerfile",
-    "instance_type": "standard-1", "max_instances": 1,
+    "instance_type": "standard-2", "max_instances": 1,
     "constraints": { "regions": ["APAC"] }
   }],
   "durable_objects": { "bindings": [{ "name": "BEATBUMP", "class_name": "BeatbumpContainer" }] },

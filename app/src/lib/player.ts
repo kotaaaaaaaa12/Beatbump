@@ -788,10 +788,10 @@ export const getSrc = async (
 	let res: any;
 	try {
 		// A freshly started companion may still be preparing its YouTube session.
-		for (let attempt = 0; attempt < 10; attempt++) {
+		for (let attempt = 0; attempt < 30; attempt++) {
 			const response = await APIClient.fetch(`/api/v1/player.json?videoId=${videoId}&playlistId=${playlistId}&playerParams=${params}`);
-			if (response.status === 503 && attempt < 9) {
-				await new Promise(resolve => setTimeout(resolve, 3000));
+			if (response.status === 503 && attempt < 29) {
+				await new Promise(resolve => setTimeout(resolve, 1000));
 				continue;
 			}
 			if (!response.ok) {
