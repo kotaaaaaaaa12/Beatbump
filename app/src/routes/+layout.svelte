@@ -17,8 +17,7 @@
     import GroupSessionCreator from "$lib/components/GroupSessionCreator";
     import Fullscreen from "$lib/components/Player/Fullscreen.svelte";
     import {fullscreenStore} from "$lib/components/Player/channel";
-    import {AudioPlayer} from "$lib/player";
-    import {groupSession, settings} from "$lib/stores";
+    import {settings} from "$lib/stores";
     import {currentTrack, queue} from "$lib/stores/list";
     import {syncTabs} from "$lib/tabSync.js";
     import {Logger} from "$lib/utils";
@@ -148,15 +147,6 @@
 				}
 			}
 		}
-	}}
-    on:pagehide={({ persisted }) => {
-		if (persisted) return console.log(persisted);
-		if (!browser) return;
-		if (groupSession.initialized && groupSession.hasActiveSession) {
-			groupSession.disconnect();
-		}
-
-		AudioPlayer?.dispose?.();
 	}}
 />
 {#if info}

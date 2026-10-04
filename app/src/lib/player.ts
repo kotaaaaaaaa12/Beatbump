@@ -35,13 +35,25 @@ interface AudioPlayerEvents {
 	"update:stream_type": { type: "HLS" | "HTTP" };
 }
 
+// Safari can report unknown duration while suspending or reloading media.
 const setPosition = (currentTime: number, duration: number) => {
-	if ("mediaSession" in navigator) {
-		console.log({ currentTime, duration });
+	if (!("mediaSession" in navigator) || !navigator.mediaSession.setPositionState ||
+		!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(currentTime)) return;
+	try {
 		navigator.mediaSession.setPositionState({
-			duration: duration,
-			position: currentTime,
+			duration,
+			position: Math.min(Math.max(currentTime, 0), duration),
 		});
+	} catch {
+		// Lock-screen controls must not interrupt playback if the browser rejects a position.
+	}
+};
+
+const setMediaAction = (action: MediaSessionAction, handler: MediaSessionActionHandler) => {
+	try {
+		navigator.mediaSession.setActionHandler(action, handler);
+	} catch {
+		// Some Safari versions do not support every Media Session action.
 	}
 };
 
@@ -58,7 +70,7 @@ function metaDataHandler({
 		const position = sessionList.position;
 		const currentTrack = sessionList.mix[position];
 
-		const artwork = currentTrack?.thumbnails;
+		const artwork = currentTrack?.thumbnails ?? [];
 
 		console.debug({ currentTrack, position, mix: sessionList.mix });
 
@@ -67,36 +79,36 @@ function metaDataHandler({
 			title: currentTrack?.title,
 			artist: currentTrack?.artistInfo?.artist?.[0]?.text || "",
 			album: currentTrack?.album?.title ?? undefined,
-			artwork: artwork.reverse().map(({ url, width, height }) => ({
+			artwork: [...artwork].reverse().map(({ url, width, height }) => ({
 				src: url,
 				sizes: `${width}x${height}`,
 				type: "image/jpeg",
 			})),
 		});
-		navigator.mediaSession.setActionHandler("play", () => {
+		setMediaAction("play", () => {
 			AudioPlayer.play();
 		});
-		navigator.mediaSession.setActionHandler("pause", () => AudioPlayer.pause());
-		navigator.mediaSession.setActionHandler("seekto", (session) => {
+		setMediaAction("pause", () => AudioPlayer.pause());
+		setMediaAction("seekto", (session) => {
 			if (session.fastSeek && "fastSeek" in AudioPlayer) {
-				session.seekTime && AudioPlayer.fastSeek(session.seekTime);
+				if (session.seekTime !== undefined) AudioPlayer.fastSeek(session.seekTime);
 				setPosition(
 					session.seekTime ?? AudioPlayer.currentTime,
 					AudioPlayer.duration,
 				);
 				return;
 			}
-			session.seekTime && AudioPlayer.seek(session.seekTime);
+			if (session.seekTime !== undefined) AudioPlayer.seek(session.seekTime);
 
 			setPosition(
 				session.seekTime ?? AudioPlayer.currentTime,
 				AudioPlayer.duration,
 			);
 		});
-		navigator.mediaSession.setActionHandler("previoustrack", () =>
+		setMediaAction("previoustrack", () =>
 			SessionListService.previous(),
 		);
-		navigator.mediaSession.setActionHandler("nexttrack", () =>
+		setMediaAction("nexttrack", () =>
 			SessionListService.next(),
 		);
 		setPosition(currentTime, duration);
@@ -283,6 +295,10 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	private declare player: HTMLAudioElement;
 	private declare videoPlayer: HTMLVideoElement | undefined;
 	private _repeat: string = "off";
+	private lastPosition = 0;
+	private pendingPosition: number | undefined;
+	private playRequested = false;
+	private sourceRevision = 0;
 	private playerKind: "hls" | "html5" = "html5";
 	private declare unsubscriber: () => void;
 	constructor() {
@@ -339,20 +355,8 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		this._repeat = state;
 	}
 
-	public get fastSeek() {
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		return this.player
-			? "fastSeek" in this.player
-				? this.player.fastSeek
-				: // eslint-disable-next-line @typescript-eslint/no-unused-vars
-				(_number: number) => {
-					//
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				}
-			: // eslint-disable-next-line @typescript-eslint/no-unused-vars
-			(_number: number) => {
-				//
-			};
+	public fastSeek(to: number) {
+		this.seek(to, true);
 	}
 
 	public get durationStore() {
@@ -399,6 +403,8 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	}
 
 	public pause() {
+		this.playRequested = false;
+		this.capturePosition();
 		syncTabs.playback({
 			state: "pause",
 			currentTime: this.currentTime,
@@ -420,7 +426,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	}
 
 	public play() {
-		this.paused.set(false);
+		this.playRequested = true;
 		if (!this.player) {
 			this.addTaskToTaskQueue("play");
 			return;
@@ -445,18 +451,62 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 				} as ConnectionState,
 			});
 		}
+		if (!this.restorePosition()) return;
 		const promise = this.player.play();
 		if (promise) {
 			promise
-				.catch((e) => console.error("ERROR", e));
+				.catch((e) => {
+					this._paused.set(this.player.paused);
+					console.error("Playback could not resume", e);
+				});
 		}
 	}
 
-	public seek(to: number) {
+	public seek(to: number, fast = false) {
+		if (!this.player || !Number.isFinite(to)) return;
 		if (to < this.durationStore.value / 2) this.setStaleTimeout();
+		const duration = this.player.duration;
+		const position = Math.max(0, Number.isFinite(duration) ? Math.min(to, duration) : to);
+		// An explicit seek, including seek-to-zero, replaces any recovery checkpoint.
+		this.pendingPosition = undefined;
+		this.lastPosition = position;
+		if (fast && typeof this.player.fastSeek === "function") this.player.fastSeek(position);
+		else this.player.currentTime = position;
+		this._currentTimeStore.set(position);
+		this._progress.set(position, { duration: 10 });
+		setPosition(position, this.duration);
+	}
 
-		this.player.currentTime = to;
-		this._progress.set(this.player.currentTime, { duration: 10 });
+	private capturePosition() {
+		if (!this.player || this.pendingPosition !== undefined) return;
+		if (this.player.readyState === 0 && this.lastPosition > 0) {
+			this.pendingPosition = this.lastPosition;
+			return;
+		}
+		if (Number.isFinite(this.player.currentTime)) {
+			this.lastPosition = this.player.currentTime;
+			this._currentTimeStore.set(this.lastPosition);
+		}
+	}
+
+	private restorePosition() {
+		if (this.pendingPosition === undefined) return true;
+		if (this.player.readyState < 1) return false;
+		const duration = this.player.duration;
+		const target = Number.isFinite(duration)
+			? Math.min(this.pendingPosition, Math.max(0, duration - 0.05))
+			: this.pendingPosition;
+		try {
+			this.player.currentTime = target;
+			if (Math.abs(this.player.currentTime - target) > 0.5) return false;
+			this.pendingPosition = undefined;
+			this.lastPosition = target;
+			this._currentTimeStore.set(target);
+			return true;
+		} catch {
+			// Retry when metadata becomes available; keep the checkpoint meanwhile.
+			return false;
+		}
 	}
 
 	public setNextTrackPrefetchedUrl(trackUrl: string) {
@@ -479,13 +529,21 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	public async updateSrc({
 		url,
 		videoUrl,
-		duration
+		duration,
+		preservePosition = false,
 	}: {
+		preservePosition?: boolean;
 		videoUrl?: string;
 		url: string;
 		duration?: number;
 	}) {
 		if (url === undefined) return;
+		const checkpoint = preservePosition ? this.lastPosition : 0;
+		this.sourceRevision++;
+		this.lastPosition = checkpoint;
+		this.pendingPosition = checkpoint > 0 ? checkpoint : undefined;
+		this._currentTimeStore.set(checkpoint);
+		this.playRequested = true;
 
 		if (videoUrl && this.videoPlayer) {
 			this.videoPlayer.src = videoUrl;
@@ -500,7 +558,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
         if (duration != undefined && duration != -1){
 			this._durationStore.set(duration / 1000);
 			setPosition(
-				0,
+				checkpoint,
 				duration / 1000,
 			);
 		} else {
@@ -546,6 +604,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 			this.errorCount = 0;
 			this.updateSrc({
 				url: createFallbackUrl(this.player.src),
+				preservePosition: true,
 			});
 		}
 	}
@@ -567,11 +626,13 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	private createAudioNode() {
 		let locked = false;
 		this.player = new Audio();
-		this.player.autoplay = true;
+		// Start only for a requested track or resume, never merely because metadata reloaded.
+		this.player.autoplay = false;
+		this.player.preload = "auto";
 
 		getPlayerVolumeFromLS(this._volumeStore);
 
-		const modeSubscription = this._mode.subscribe(async (value) => {
+		this._mode.subscribe(async (value) => {
 			await tick();
 			if (value === "audio") {
 				if (this.videoPlayer) {
@@ -587,66 +648,79 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 				}
 			}
 		});
-		const volumeSubscription = this._volumeStore.subscribe((value) => {
+		this._volumeStore.subscribe((value) => {
 			this.player.volume = value;
 			localStorage.setItem("volume", value.toString());
 		});
 
-		window.addEventListener("pagehide", ({ persisted }) => {
-			if (persisted) return;
-			this?.dispose?.();
-			volumeSubscription();
-			modeSubscription();
-			this.player.remove();
-			this.videoPlayer?.remove();
+		// Keep the same audio element and listeners through app switches and BFCache.
+		// Mobile Safari may freeze JavaScript while native audio continues playing.
+		window.addEventListener("pagehide", () => this.capturePosition());
+		document.addEventListener("visibilitychange", () => {
+			this.capturePosition();
+			setPosition(this.currentTime, this.duration);
+		});
+		window.addEventListener("pageshow", () => {
+			this.restorePosition();
+			this.capturePosition();
 		});
 
+		this.onEvent("emptied", () => {
+			// A same-track media reload can clear currentTime before metadata returns.
+			if (this.lastPosition > 0) this.pendingPosition = this.lastPosition;
+		});
 
-		this.onEvent("loadedmetadata", async () => {
-			this._paused.set(false);
-			if (this.videoNode)
-				await loadVideo(this.videoNode).then(async () => {
-					await tick();
-					if (this.videoNode)
-						this.videoNode.currentTime = this.player.currentTime;
-				});
-
-			await this.videoPlayer?.play();
-			this._paused.set(false);
-			this.play();
-			await tick();
-			groupSession.resetAllCanPlay();
-
-			this.setStaleTimeout();
-			this.nextSrc.url = undefined;
-			this._currentTimeStore.set(0);
-
-			/*const duration = isAppleMobileDevice
-				? this.player.duration / 2
-				: this.player.duration;*/
-			if (this._durationStore.value === 0) {
+		this.onEvent("loadedmetadata", () => {
+			const revision = this.sourceRevision;
+			if (this.pendingPosition === undefined && this.lastPosition > 0 &&
+				this.player.currentTime === 0) this.pendingPosition = this.lastPosition;
+			this.restorePosition();
+			this.capturePosition();
+			if (Number.isFinite(this.player.duration) && this.player.duration > 0) {
 				this._durationStore.set(this.player.duration);
 			}
+			if (this.videoNode) {
+				loadVideo(this.videoNode).then(() => {
+					if (revision !== this.sourceRevision || !this.videoNode) return;
+					this.videoNode.currentTime = this.player.currentTime;
+					if (this.playRequested && this._mode.value === "video")
+						void this.videoNode.play().catch(console.error);
+				}).catch(console.error);
+			}
+			if (this.playRequested && this.player.paused) this.play();
+			groupSession.resetAllCanPlay();
+			this.setStaleTimeout();
+			this.nextSrc.url = undefined;
 
 			if (syncTabs.role === "host") {
 				syncTabs.updatePosition(SessionListService.position);
-				syncTabs.playback({
-					state: "play",
-					currentTime: this.currentTime,
-					duration: this.duration,
-				});
 			}
-
 			metaDataHandler({
 				duration: this.duration,
-				currentTime: this.player.currentTime,
+				currentTime: this.currentTime,
 				sessionList: SessionListService.$.value,
 			});
 		});
 
+		this.onEvent("canplay", () => {
+			if (this.playRequested && this.player.paused && this.restorePosition()) this.play();
+		});
+		this.onEvent("durationchange", () => {
+			this.restorePosition();
+			if (Number.isFinite(this.player.duration) && this.player.duration > 0)
+				this._durationStore.set(this.player.duration);
+		});
 		this.onEvent("play", () => {
+			this.playRequested = true;
 			this._paused.set(false);
-			this.play();
+			if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
+		});
+		this.onEvent("pause", () => {
+			// Loading a new source also emits pause before its metadata is ready.
+			if (this.player.readyState > 0) this.playRequested = false;
+			this.capturePosition();
+			this._paused.set(true);
+			if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
 		});
 
 		this.onEvent("seeked", () => {
@@ -656,14 +730,18 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		});
 
 
-		this.onEvent("timeupdate", async () => {
-			this._currentTimeStore.set(this.player.currentTime);
-			/*const duration = isAppleMobileDevice
-				? this.player.duration / 2
-				: this.player.duration;*/
+		this.onEvent("timeupdate", () => {
+			if (!this.restorePosition()) return;
+			this.capturePosition();
+			setPosition(this.currentTime, this.duration);
+		});
 
-			// We're at the end - get the next track!
-			if (this.player.currentTime >= this.duration - 1.0 && !locked) {
+		// Estimates and interrupted timeupdate events are not evidence of track completion.
+		this.onEvent("ended", async () => {
+			if (!this.player.ended || locked || this.pendingPosition !== undefined) return;
+			this.lastPosition = 0;
+			locked = true;
+			{
 				try {
 					if (this._repeat !== "off") {
 						const allowContinuation = await this.handleRepeat();
@@ -671,7 +749,6 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 							return;
 						}
 					}
-					if (!locked) locked = true;
 
 					if (groupSession.initialized) {
 						return await Promise.resolve(
@@ -729,7 +806,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 				const [name, args] = this._taskQueue.shift()!;
 				const method = this[name];
 				//@ts-expect-error It's fine
-				if (typeof method === "function") method(...args);
+				if (typeof method === "function") method.apply(this, args);
 			}
 		}
 	}
