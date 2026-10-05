@@ -2,7 +2,6 @@ import { derived, get, writable } from "svelte/store";
 import en from "./en.json";
 import ja from "./ja.json";
 import { translateCuratedLabel } from "./curated-labels";
-import { discoveryTranslations, remoteDiscoveryTranslation } from "./discovery-translations";
 
 export type LanguagePreference = "auto" | "ja" | "en";
 export type Locale = "ja" | "en";
@@ -96,10 +95,10 @@ export function translateSectionHeadingFor(language: Locale, value: string | und
 	}
 	const curated = translateCuratedLabel(text, (key, values) => translateFor(language, key, values));
     if (curated) return curated;
-    // Public upstream labels can change without a frontend release.
-    return remoteDiscoveryTranslation(original) ?? original;
+    // Unknown upstream headings keep their original text until the catalog is updated.
+    return original;
 }
-export const sectionHeading = derived([locale, discoveryTranslations], ([language]) => (value: string | undefined) => translateSectionHeadingFor(language, value));
+export const sectionHeading = derived(locale, language => (value: string | undefined) => translateSectionHeadingFor(language, value));
 
 type DiscoveryItem = {
 	title?: string;
@@ -110,21 +109,17 @@ type DiscoveryItem = {
 	subtitle?: { text?: string }[];
 };
 
-export function translateDiscoveryTitleFor(language: Locale, item: DiscoveryItem): string {
-	const title = item.title ?? "";
-	if (item.translationKey) return translateFor(language, item.translationKey);
-	const id = item.endpoint?.browseId || item.browseId || item.playlistId || "";
-	const curated = /^(?:VL)?RDCLAK5uy_/.test(id) ||
-		(!!item.endpoint?.pageType?.includes("PLAYLIST") && !!item.subtitle?.some(part => /^YouTube (?:Music|Charts)$/.test(part.text ?? "")));
-	return curated ? translateSectionHeadingFor(language, title) : title;
+// Content titles are provider-owned names, including official curated playlists.
+// Only section/category labels use the heading catalog.
+export function translateDiscoveryTitleFor(_language: Locale, item: DiscoveryItem): string {
+	return item.title ?? "";
 }
-export const discoveryTitle = derived([locale, discoveryTranslations], ([language]) => (item: DiscoveryItem) => translateDiscoveryTitleFor(language, item));
+export const discoveryTitle = derived(locale, language => (item: DiscoveryItem) => translateDiscoveryTitleFor(language, item));
 
-export function translateCuratedPlaylistTitleFor(language: Locale, title: string, id: string, subtitles: unknown = []): string {
-	const provider = Array.isArray(subtitles) && subtitles.some(part => /^YouTube (?:Music|Charts)$/.test(typeof part === "string" ? part : part?.text ?? ""));
-	return /^(?:VL)?RDCLAK5uy_/.test(id) || provider ? translateSectionHeadingFor(language, title) : title;
+export function translateCuratedPlaylistTitleFor(_language: Locale, title: string, _id: string, _subtitles: unknown = []): string {
+	return title;
 }
-export const curatedPlaylistTitle = derived([locale, discoveryTranslations], ([language]) => (title: string, id: string, subtitles?: unknown) => translateCuratedPlaylistTitleFor(language, title, id, subtitles));
+export const curatedPlaylistTitle = derived(locale, language => (title: string, id: string, subtitles?: unknown) => translateCuratedPlaylistTitleFor(language, title, id, subtitles));
 
 export function translateMetadataFor(language: Locale, value: unknown): string {
 	const text = String(value ?? "");

@@ -38,8 +38,5 @@
         "BeatbumpContainer"
       ]
     }
-  ],
-  "ai": {
-    "binding": "AI"
-  }
+  ]
 }

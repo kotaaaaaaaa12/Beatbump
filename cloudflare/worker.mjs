@@ -1,4 +1,3 @@
-import { DiscoveryLocalizer } from './discovery-localization.mjs';
 import { Container } from '@cloudflare/containers';
 import en from '../app/src/lib/i18n/en.json';
 import ja from '../app/src/lib/i18n/ja.json';
@@ -9,7 +8,6 @@ export class BeatbumpContainer extends Container {
   enableInternet = true;
   constructor(ctx, env) {
     super(ctx, env);
-    this.discoveryLocalizer = new DiscoveryLocalizer(ctx.storage, env.AI, ctx);
     this.ready = ctx.blockConcurrencyWhile(async () => {
       let key = await ctx.storage.get('companion-key');
       if (!key) {
@@ -21,7 +19,6 @@ export class BeatbumpContainer extends Container {
   }
   async fetch(request) {
     await this.ready;
-    if (new URL(request.url).pathname === "/api/v1/localize") return this.discoveryLocalizer.handle(request);
     return super.fetch(request);
   }
 }
@@ -41,6 +38,12 @@ export default {
       if ((origin && origin !== url.origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
         return new Response('Origin not allowed', { status: 403 });
       }
+    }
+    // Retire the old endpoint before selecting or provisioning a Container.
+    if (url.pathname === '/api/v1/localize') {
+      return Response.json({ error: 'automatic_translation_disabled' }, {
+        status: 410, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+      });
     }
     const headers = new Headers(request.headers);
     headers.set('X-Beatbump-Origin', url.origin);
