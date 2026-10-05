@@ -140,8 +140,8 @@ func CloudMediaHandler(c echo.Context) error {
 		return c.JSON(502, map[string]string{"error": "The audio service is temporarily unavailable."})
 	}
 	defer response.Body.Close()
-	c.Response().Header().Set("Server-Timing", mediaTimingHeader(transport, elapsed))
-	c.Response().Header().Set("X-Beatbump-Media-Revision", "media-race-1")
+	c.Response().Header().Set("Server-Timing", mediaTimingHeader(transport, elapsed)+mediaResponseTiming(c.Request(), response))
+	c.Response().Header().Set("X-Beatbump-Media-Revision", "media-affinity-2")
 	for _, name := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified"} {
 		if value := response.Header.Get(name); value != "" {
 			c.Response().Header().Set(name, value)

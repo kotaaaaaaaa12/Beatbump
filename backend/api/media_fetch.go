@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -72,8 +74,55 @@ type mediaCandidate struct {
 	err       error
 }
 
-// Keep the fast companion path. Start the existing direct GET fallback early
-// when companion stalls; only the first usable response continues streaming.
+// Remember the working transport for this exact signed stream, not another track.
+// Entries contain only hashes and expire quickly; no audio or credentials are cached.
+const mediaRouteLimit = 256
+const mediaRouteTTL = 2 * time.Minute
+
+type mediaRouteEntry struct {
+	transport string
+	expires   time.Time
+}
+type mediaRouteMemory struct {
+	sync.Mutex
+	entries map[[32]byte]mediaRouteEntry
+}
+
+var mediaRoutes = mediaRouteMemory{entries: make(map[[32]byte]mediaRouteEntry)}
+
+func (memory *mediaRouteMemory) preferred(key [32]byte, now time.Time) string {
+	memory.Lock()
+	defer memory.Unlock()
+	entry, exists := memory.entries[key]
+	if exists && now.Before(entry.expires) {
+		return entry.transport
+	}
+	delete(memory.entries, key)
+	return "companion"
+}
+func (memory *mediaRouteMemory) remember(key [32]byte, transport string, now time.Time) {
+	memory.Lock()
+	defer memory.Unlock()
+	for k, entry := range memory.entries {
+		if !now.Before(entry.expires) {
+			delete(memory.entries, k)
+		}
+	}
+	if len(memory.entries) >= mediaRouteLimit {
+		var oldest [32]byte
+		var expiry time.Time
+		for k, entry := range memory.entries {
+			if expiry.IsZero() || entry.expires.Before(expiry) {
+				oldest, expiry = k, entry.expires
+			}
+		}
+		delete(memory.entries, oldest)
+	}
+	memory.entries[key] = mediaRouteEntry{transport, now.Add(mediaRouteTTL)}
+}
+
+// Start the proven route first; hedge the other route on delay or rejection.
+// Only the first usable response continues streaming.
 func fetchMedia(ctx context.Context, companion, direct *http.Request, probe bool, hedge time.Duration) (*http.Response, string, time.Duration, error) {
 	started := time.Now()
 	companionContext, cancelCompanion := context.WithCancel(ctx)
@@ -117,17 +166,27 @@ func fetchMedia(ctx context.Context, companion, direct *http.Request, probe bool
 			}
 		}()
 	}
-	launch(proxyHTTP, companion, companionContext, cancelCompanion, "companion")
-	timer := time.NewTimer(hedge)
-	defer timer.Stop()
-	directStarted, completed := false, 0
-	var failure error
-	startDirect := func() {
-		if !directStarted {
+	key := sha256.Sum256([]byte(direct.URL.String()))
+	preferred := mediaRoutes.preferred(key, started)
+	companionStarted, directStarted := false, false
+	startTransport := func(transport string) {
+		if transport == "direct" && !directStarted {
 			directStarted = true
 			launch(directMediaHTTP, direct, directContext, cancelDirect, "direct")
+		} else if transport == "companion" && !companionStarted {
+			companionStarted = true
+			launch(proxyHTTP, companion, companionContext, cancelCompanion, "companion")
 		}
 	}
+	fallback := "direct"
+	if preferred == "direct" {
+		fallback = "companion"
+	}
+	startTransport(preferred)
+	timer := time.NewTimer(hedge)
+	defer timer.Stop()
+	completed := 0
+	var failure error
 	for {
 		select {
 		case result := <-results:
@@ -138,19 +197,20 @@ func fetchMedia(ctx context.Context, companion, direct *http.Request, probe bool
 				} else {
 					cancelCompanion()
 				}
+				mediaRoutes.remember(key, result.transport, time.Now())
 				return result.response, result.transport, time.Since(started), nil
 			}
 			if failure == nil || result.transport == "direct" {
 				failure = result.err
 			}
-			startDirect()
+			startTransport(fallback)
 			if completed == 2 {
 				cancelCompanion()
 				cancelDirect()
 				return nil, "", time.Since(started), failure
 			}
 		case <-timer.C:
-			startDirect()
+			startTransport(fallback)
 		case <-ctx.Done():
 			cancelCompanion()
 			cancelDirect()
@@ -173,4 +233,20 @@ func (writer mediaFlushWriter) Write(bytes []byte) (int, error) {
 }
 func mediaTimingHeader(transport string, elapsed time.Duration) string {
 	return fmt.Sprintf("media_%s;dur=%.1f", transport, float64(elapsed)/float64(time.Millisecond))
+}
+
+// Numeric response details make Safari byte probes visible without signed URLs.
+func mediaResponseTiming(request *http.Request, response *http.Response) string {
+	value := fmt.Sprintf(", media_status;dur=%d", response.StatusCode)
+	if request.Method == http.MethodHead {
+		value += ", media_head;dur=1"
+	}
+	if response.ContentLength >= 0 {
+		value += fmt.Sprintf(", media_bytes;dur=%d", response.ContentLength)
+	}
+	parts := contentRangePattern.FindStringSubmatch(response.Header.Get("Content-Range"))
+	if len(parts) == 4 {
+		value += fmt.Sprintf(", media_range_start;dur=%s, media_range_end;dur=%s, media_total_bytes;dur=%s", parts[1], parts[2], parts[3])
+	}
+	return value
 }
