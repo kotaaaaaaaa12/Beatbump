@@ -17,7 +17,7 @@
 </script>
 
 <script lang="ts">
-	import { t, translate, metadata } from "$lib/i18n";
+	import { t, translate, metadata, discoveryTitle } from "$lib/i18n";
 	import Loading from "$components/Loading/Loading.svelte";
 	import { createEventDispatcher, hasContext, tick } from "svelte";
 
@@ -359,7 +359,7 @@
 			</div>
 			<div class="title">
 				<p class="text-title">
-					<span>{data.title}</span>
+					<span>{$discoveryTitle(data)}</span>
 					{#if data.explicit}
 						<Icon
 							name="explicit"

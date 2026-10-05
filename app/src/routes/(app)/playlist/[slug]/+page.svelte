@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { curatedPlaylistTitle } from "$lib/i18n";
 	import ListItem, {
 		listItemPageContext,
 	} from "$lib/components/ListItem/ListItem.svelte";
@@ -41,7 +42,7 @@
 	$: ctoken = continuations?.token || null;
 	$: itct = continuations?.clickTrackingParams || undefined;
 	let width = 640;
-	let pageTitle = header?.title || "";
+	let pageTitle = Array.isArray(header?.title) ? header.title.join("") : String(header?.title ?? "");
 	let description: string;
 	let isLoading = false;
 	let hasData: boolean | null = false;
@@ -57,10 +58,6 @@
 		visitorData: data?.visitorData,
 	});
 
-	pageTitle =
-		pageTitle.length > 64
-			? pageTitle.substring(0, 64) + "..."
-			: header?.title || "";
 	description =
 		header?.description !== undefined
 			? header?.description.length > 240
@@ -260,7 +257,7 @@
 <svelte:window bind:innerWidth={width} />
 {#if header.title !== "error"}
 	<Header
-		title={header?.title}
+		title={$curatedPlaylistTitle(pageTitle, id, header?.subtitle)}
 		url={`${key}`}
 		desc={description}
 		image={header?.thumbnails !== null
@@ -279,7 +276,7 @@
 						"=w512-h512",
 				  )
 				: undefined}
-			title={pageTitle}
+			title={$curatedPlaylistTitle(pageTitle, id, header?.subtitle)}
 			{description}
 			buttons={[
 				{

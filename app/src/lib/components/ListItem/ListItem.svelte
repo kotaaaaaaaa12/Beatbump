@@ -298,7 +298,7 @@
 </script>
 
 <script lang="ts">
-	import { t, metadata } from "$lib/i18n";
+	import { t, metadata, discoveryTitle } from "$lib/i18n";
 	import { page as PageStore } from "$app/stores";
 	import {
 		isMobileMQ,
@@ -491,7 +491,7 @@
 		{/if}
 		<div class="column">
 			<span class="title"
-				>{item.title}
+				>{$discoveryTitle(item)}
 				{#if item.explicit}
 					<Icon
 						name="explicit"

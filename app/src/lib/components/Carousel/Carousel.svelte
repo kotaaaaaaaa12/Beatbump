@@ -123,7 +123,7 @@
 	let href =
             header?.browseId && isArtistPage
 			? urls.artist
-			: header.browseId?.includes("VLP") || header.title?.includes("Trending")
+			: header.browseId?.startsWith("VL")
 			? urls.playlist
             : header.browseId?.includes("FEmusic")
 			? urls.trending2
@@ -138,11 +138,11 @@
 		{$sectionHeading(header.title)}
 	</span>
 
-	{#if !header.title.includes("Videos") && header.browseId}
+	{#if !/videos|動画/i.test(header.title) && header.browseId}
 		<a href={href}>
 			<small>{$t("See All")}</small>
 		</a>
-	{:else if isArtistPage && header.title.includes("Videos")}
+	{:else if isArtistPage && /videos|動画/i.test(header.title)}
 		<a href={urls.playlist}>
 			<small>{$t("See All")}</small>
 		</a>

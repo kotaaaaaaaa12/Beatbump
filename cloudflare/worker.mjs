@@ -1,3 +1,4 @@
+import { DiscoveryLocalizer } from './discovery-localization.mjs';
 import { Container } from '@cloudflare/containers';
 import en from '../app/src/lib/i18n/en.json';
 import ja from '../app/src/lib/i18n/ja.json';
@@ -8,6 +9,7 @@ export class BeatbumpContainer extends Container {
   enableInternet = true;
   constructor(ctx, env) {
     super(ctx, env);
+    this.discoveryLocalizer = new DiscoveryLocalizer(ctx.storage, env.AI, ctx);
     this.ready = ctx.blockConcurrencyWhile(async () => {
       let key = await ctx.storage.get('companion-key');
       if (!key) {
@@ -19,6 +21,7 @@ export class BeatbumpContainer extends Container {
   }
   async fetch(request) {
     await this.ready;
+    if (new URL(request.url).pathname === "/api/v1/localize") return this.discoveryLocalizer.handle(request);
     return super.fetch(request);
   }
 }

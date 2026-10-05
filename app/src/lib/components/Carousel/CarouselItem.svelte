@@ -174,7 +174,7 @@
 </script>
 
 <script lang="ts">
-	import { metadata, t } from "$lib/i18n";
+	import { metadata, discoveryTitle } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import Loading from "$components/Loading/Loading.svelte";
 	// import { groupSession } from "$lib/stores";
@@ -213,7 +213,7 @@
 
 	$: RATIO_RECT =
 		(aspectRatio?.includes("TWO_LINE_STACK") &&
-			kind !== "Fans might also like") ||
+			!isArtistKind) ||
 		aspectRatio?.includes("16_9")
 			? true
 			: false;
@@ -321,7 +321,7 @@
 			? srcImg.url.replace(RE_THUMBNAIL_DIM, "=w240-h240-")
 			: srcImg.url;
 
-	$: isArtistKind = kind === "Fans might also like";
+	$: isArtistKind = item.endpoint?.pageType === "MUSIC_PAGE_TYPE_ARTIST";
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -344,7 +344,7 @@
 				class="image img{ASPECT_RATIO}"
 				class:isArtistKind
 				tabindex="0"
-				title={item.translationKey ? $t(item.translationKey) : item.title}
+				title={$discoveryTitle(item)}
 			>
 				{#if loading}
 					<Loading />
@@ -373,7 +373,7 @@
 		class:isArtistKind
 	>
 		<span class="h1 link">
-			{item.translationKey ? $t(item.translationKey) : item.title}
+			{$discoveryTitle(item)}
 		</span>
 		{#if item.subtitle}
 			<div class="subtitles secondary">

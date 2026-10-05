@@ -131,9 +131,7 @@
 						<div class="show-more">
 							<a
 								data-testid=""
-								href={`${$page.params.slug}?filter=${result.header.title
-									.replace(/\s/g, "_")
-									.toLowerCase()}`}
+								href={`${$page.params.slug}?filter=${result.header.filter || "all"}`}
 								class="link secondary">{$t("Show All")}</a
 							>
 						</div>

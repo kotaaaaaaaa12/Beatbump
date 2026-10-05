@@ -24,7 +24,7 @@
 	/>
 	<meta
 		property="og:description"
-		content={`Listen to ${title} on Beatbump`}
+		content={$t("Listen to {title} on Beatbump", { title })}
 	/>
 	<meta
 		property="og:site_name"

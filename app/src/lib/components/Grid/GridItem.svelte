@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t, metadata } from "$lib/i18n";
+	import { t, metadata, discoveryTitle } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import lazy from "$lib/lazy";
 	import list from "$lib/stores/list";
@@ -37,7 +37,7 @@
 			alt={$t("thumbnail")}
 		/>
 	</div>
-	<div class="item-title">{item.title}</div>
+	<div class="item-title">{$discoveryTitle(item)}</div>
 	{#if item.subtitle}
 		<span class="subtitles secondary">
 			{#each item.subtitle as sub}
