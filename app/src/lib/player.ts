@@ -1,4 +1,4 @@
-import { summarizeMediaRequests, type MediaRequestTiming } from "$lib/utils/playbackMediaTiming";
+import { summarizeMediaRequests, captureMediaEvent, type PlaybackMediaEvent, type MediaRequestTiming } from "$lib/utils/playbackMediaTiming";
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 import { browser } from "$app/environment";
 import { SessionListService } from "$stores/list/sessionList";
@@ -675,6 +675,9 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		// Start only for a requested track or resume, never merely because metadata reloaded.
 		this.player.autoplay = false;
 		this.player.preload = "auto";
+  for (const event of ["loadstart", "loadedmetadata", "loadeddata", "canplay", "canplaythrough", "play", "playing", "waiting", "stalled", "suspend", "pause", "error", "seeking", "seeked", "ended"] as const) {
+   this.player.addEventListener(event, () => recordPlaybackEvent(this.player, event));
+  }
 
 		getPlayerVolumeFromLS(this._volumeStore);
 
@@ -986,7 +989,8 @@ function resolvePlayer(videoId: string, playlistId?: string, params?: string): P
 let playbackRequest = 0;
 
 export interface PlaybackTiming {
-	version: 2;
+	version: 3;
+ mediaEvents?: PlaybackMediaEvent[];
 	mediaRequests?: MediaRequestTiming[];
 	phase: "resolving" | "loading" | "playing" | "failed";
 	metadataCache: "miss" | "shared" | "hit";
@@ -1005,7 +1009,7 @@ export function getPlaybackDiagnostics(timing: PlaybackTiming): PlaybackTiming {
  const mediaRequests = activeTiming?.source && activeTiming.sourceAt !== undefined && typeof performance !== "undefined"
   ? summarizeMediaRequests(performance.getEntriesByType("resource") as PerformanceResourceTiming[], activeTiming.source, activeTiming.sourceAt)
   : [];
- return { ...timing, mediaRequests };
+ return { ...timing, mediaRequests, mediaEvents: activeTiming?.result === undefined ? [] : [...(activeTiming.result.mediaEvents ?? [])] };
 }
 
 export interface PlaybackPreparation {
@@ -1031,7 +1035,7 @@ export function preparePlayback(videoId: string, playlistId?: string, params?: s
 	const cached = playerLookups.get(key);
 	const metadataCache = cached && cached.expires > Date.now()
 		? cached.expires === Infinity ? "shared" : "hit" : "miss";
-	activeTiming = { request, startedAt, result: { version: 2, phase: "resolving", metadataCache, readinessRetries: 0 } };
+	activeTiming = { request, startedAt, result: { version: 3, phase: "resolving", metadataCache, readinessRetries: 0 } };
 	playbackTiming.set({ ...activeTiming.result });
 	AudioPlayer.prepareTrack();
 	const source = resolvePlayer(videoId, playlistId, params).then(data => {
@@ -1073,6 +1077,13 @@ function markPlaybackSource(url: string) {
 	activeTiming.result.sourceReadyMs = elapsed(activeTiming.startedAt);
 	activeTiming.result.phase = "loading";
 	playbackTiming.set({ ...activeTiming.result });
+}
+
+function recordPlaybackEvent(audio: HTMLMediaElement, event: string) {
+ if (!activeTiming?.source || activeTiming.sourceAt === undefined || audio.src !== activeTiming.source) return;
+ const events = activeTiming.result.mediaEvents ??= [];
+ // Keep startup evidence even after a long playback session.
+ if (events.length < 48) events.push(captureMediaEvent(audio, event, performance.now() - activeTiming.sourceAt));
 }
 
 function markPlaybackStarted(url: string) {
