@@ -123,45 +123,31 @@ func CloudMediaHandler(c echo.Context) error {
 		req.Header.Set("Range", r)
 	}
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("COMPANION_SECRET_KEY"))
-	response, err := proxyHTTP.Do(req)
+	directRequest, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, u.String(), nil)
 	if err != nil {
-		if response != nil {
-			response.Body.Close()
-		}
+		return err
 	}
-	// Some Google clients reject companion's POST-based media fetch. Retry a
-	// normal range GET from the same container without exposing the CDN to Safari.
-	if err != nil || response.StatusCode >= 400 {
-		if response != nil {
-			response.Body.Close()
-		}
-		directRequest, requestErr := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, u.String(), nil)
-		if requestErr != nil {
-			return requestErr
-		}
-		directRequest.Header.Set("Range", req.Header.Get("Range"))
-		directRequest.Header.Set("User-Agent", "Mozilla/5.0")
-		directRequest.Header.Set("Origin", "https://www.youtube.com")
-		directRequest.Header.Set("Referer", "https://www.youtube.com/")
-		response, err = directMediaHTTP.Do(directRequest)
-	}
+	directRequest.Header.Set("Range", req.Header.Get("Range"))
+	directRequest.Header.Set("User-Agent", "Mozilla/5.0")
+	directRequest.Header.Set("Origin", "https://www.youtube.com")
+	directRequest.Header.Set("Referer", "https://www.youtube.com/")
+	response, transport, elapsed, err := fetchMedia(c.Request().Context(), req, directRequest, c.Request().Method != http.MethodHead, mediaHedgeDelay)
 	if err != nil {
+		var rejected *mediaResponseError
+		if errors.As(err, &rejected) && rejected.status == http.StatusRequestedRangeNotSatisfiable {
+			return c.String(416, "Audio byte range unavailable")
+		}
 		return c.JSON(502, map[string]string{"error": "The audio service is temporarily unavailable."})
 	}
 	defer response.Body.Close()
-	if response.StatusCode >= 300 {
-		return c.JSON(response.StatusCode, map[string]string{"error": "The upstream audio service rejected this stream. Reload the track."})
-	}
-	contentType := strings.ToLower(strings.Split(response.Header.Get("Content-Type"), ";")[0])
-	if !strings.HasPrefix(contentType, "audio/") && !strings.HasPrefix(contentType, "video/") && contentType != "application/octet-stream" {
-		return c.JSON(502, map[string]string{"error": "The upstream returned an invalid audio response. Reload the track."})
-	}
+	c.Response().Header().Set("Server-Timing", mediaTimingHeader(transport, elapsed))
+	c.Response().Header().Set("X-Beatbump-Media-Revision", "media-race-1")
 	for _, name := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified"} {
 		if value := response.Header.Get(name); value != "" {
 			c.Response().Header().Set(name, value)
 		}
 	}
-	c.Response().Header().Set("Cache-Control", "no-store")
+	c.Response().Header().Set("Cache-Control", "no-store, no-transform")
 	c.Response().Header().Set("Accept-Ranges", "bytes")
 	status := response.StatusCode
 	// Safari expects 206 for its initial bytes=0-1 and subsequent seek requests.
@@ -172,7 +158,12 @@ func CloudMediaHandler(c echo.Context) error {
 	if c.Request().Method == http.MethodHead {
 		return nil
 	}
-	_, err = io.Copy(c.Response(), response.Body)
+	var writer io.Writer = c.Response()
+	if flusher, ok := c.Response().Writer.(http.Flusher); ok {
+		flusher.Flush()
+		writer = mediaFlushWriter{writer: writer, flusher: flusher}
+	}
+	_, err = io.Copy(writer, response.Body)
 	return err
 }
 
