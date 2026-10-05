@@ -19,9 +19,13 @@ func HomeEndpointHandler(c echo.Context) error {
 	params := query.Get("params")
 	//referrer := query.Get("ref")
 	visitorData := query.Get("visitorData")
+	if ctoken == "" {
+		// Warm regional data alongside the ordinary home request, not after it.
+		go func() { _, _ = japanCharts() }()
+	}
 	var responseBytes []byte
 	var err error
-	if ctoken != "" && itct != "" {
+	if ctoken != "" {
 		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, params, &visitorData, &itct, &ctoken, api.WebMusic)
 	} else {
 		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, params, &visitorData, nil, nil, api.WebMusic)
@@ -37,7 +41,8 @@ func HomeEndpointHandler(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))
 	}
 
-	r := ParseHome(homeResponse)
+	r := ParseHome(homeResponse).(map[string]interface{})
+	applyJapanHomeRegion(r, ctoken == "", japanCharts)
 
 	return c.JSON(http.StatusOK, r)
 }
@@ -45,12 +50,14 @@ func HomeEndpointHandler(c echo.Context) error {
 func ParseHome(homeResponse _youtube.HomeResponse) interface{} {
 	var carouselResponse []Carousel = make([]Carousel, 0)
 	var response = make(map[string]interface{}, 0)
+	response["chips"] = []map[string]interface{}{}
+	response["headerThumbnail"] = []Thumbnail{}
 
 	if len(homeResponse.Header.MusicHeaderRenderer.Title.Runs) != 0 {
 		response["header"] = homeResponse.Header.MusicHeaderRenderer.Title.Runs[0].Text
 	}
 	//var description Description = Description{}
-	if len(homeResponse.Contents.SingleColumnBrowseResultsRenderer.Tabs[0].TabRenderer.Content.SectionListRenderer.Contents) != 0 {
+	if len(homeResponse.Contents.SingleColumnBrowseResultsRenderer.Tabs) != 0 && len(homeResponse.Contents.SingleColumnBrowseResultsRenderer.Tabs[0].TabRenderer.Content.SectionListRenderer.Contents) != 0 {
 		for _, section := range homeResponse.Contents.SingleColumnBrowseResultsRenderer.Tabs[0].TabRenderer.Content.SectionListRenderer.Contents {
 			musicShelf := Carousel{}
 			contents := make([]IListItemRenderer, 0)
@@ -172,6 +179,9 @@ func ParseHome(homeResponse _youtube.HomeResponse) interface{} {
 	if len(homeResponse.ContinuationContents.SectionListContinuation.Contents) != 0 {
 
 		for _, section := range homeResponse.ContinuationContents.SectionListContinuation.Contents {
+			if len(section.MusicCarouselShelfRenderer.Contents) == 0 {
+				continue
+			}
 
 			musicShelf := Carousel{}
 
@@ -191,8 +201,10 @@ func ParseHome(homeResponse _youtube.HomeResponse) interface{} {
 				var item IListItemRenderer
 				if carousel.MusicResponsiveListItemRenderer != nil {
 					item = parseMusicResponsiveListItemRenderer(*carousel.MusicResponsiveListItemRenderer)
-				} else {
+				} else if carousel.MusicTwoRowItemRenderer != nil {
 					item = parseMusicTwoRowItemRenderer(*carousel.MusicTwoRowItemRenderer)
+				} else {
+					continue
 				}
 
 				contents = append(contents, item)
@@ -211,6 +223,11 @@ func ParseHome(homeResponse _youtube.HomeResponse) interface{} {
 			response["continuations"] = struct{}{}
 		}
 	}
+	// Keep one stable response shape, including the last continuation page.
+	if _, exists := response["continuations"]; !exists {
+		response["continuations"] = struct{}{}
+	}
+	response["visitorData"] = homeResponse.ResponseContext.VisitorData
 
 	headerThumbnail := homeResponse.Background.MusicThumbnailRenderer.Thumbnail.Thumbnails
 	if len(headerThumbnail) != 0 {

@@ -59,6 +59,7 @@ type IListItemRenderer struct {
 	ArtistInfo          ArtistInfo `json:"artistInfo"`
 	Explicit            bool       `json:"explicit"`
 	Title               string     `json:"title"`
+	TranslationKey      string     `json:"translationKey,omitempty"`
 	AspectRatio         *string    `json:"aspectRatio,omitempty"`
 	PlayerParams        string     `json:"playerParams,omitempty"`
 	PlaylistSetVideoId  string     `json:"playlistSetVideoId,omitempty"`

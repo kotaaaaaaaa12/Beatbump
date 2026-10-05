@@ -174,7 +174,7 @@
 </script>
 
 <script lang="ts">
-	import { metadata } from "$lib/i18n";
+	import { metadata, t } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import Loading from "$components/Loading/Loading.svelte";
 	// import { groupSession } from "$lib/stores";
@@ -344,7 +344,7 @@
 				class="image img{ASPECT_RATIO}"
 				class:isArtistKind
 				tabindex="0"
-				title={item.title}
+				title={item.translationKey ? $t(item.translationKey) : item.title}
 			>
 				{#if loading}
 					<Loading />
@@ -373,7 +373,7 @@
 		class:isArtistKind
 	>
 		<span class="h1 link">
-			{item.title}
+			{item.translationKey ? $t(item.translationKey) : item.title}
 		</span>
 		{#if item.subtitle}
 			<div class="subtitles secondary">

@@ -15,6 +15,9 @@ func TrendingEndpointHandler(c echo.Context) error {
 		browseId = "FEmusic_explore"
 	}
 	qparams := c.QueryParam("params")
+	if browseId == "FEmusic_explore" {
+		go func() { _, _ = japanCharts() }()
+	}
 	var responseBytes []byte
 	var err error
 
@@ -22,6 +25,16 @@ func TrendingEndpointHandler(c echo.Context) error {
 
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))
+	}
+	if browseId == "FEmusic_charts" {
+		shelves, err := parseJapanCharts(responseBytes)
+		if err != nil {
+			return c.String(http.StatusBadGateway, "Japan charts unavailable")
+		}
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"carousels": shelves, "continuations": struct{}{}, "contentRegion": "JP",
+			"regionRevision": japanRegionRevision, "regionalStatus": "ready",
+		})
 	}
 
 	/*if category == "" {
@@ -41,7 +54,10 @@ func TrendingEndpointHandler(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))
 	}
 
-	r := ParseHome(homeResponse)
+	r := ParseHome(homeResponse).(map[string]interface{})
+	if browseId == "FEmusic_explore" {
+		applyJapanHomeRegion(r, true, japanCharts)
+	}
 
 	return c.JSON(http.StatusOK, r)
 	//}

@@ -24,7 +24,7 @@
 
 	let loading = false;
 	let hasData = false;
-	$: console.log(data, carousels);
+	$: if (data) hasData = false;
 	homeChipContext.set({ params });
 </script>
 
@@ -77,6 +77,9 @@
 	{/if}
 </div>
 <main data-testid="home">
+	{#if data.regionalStatus === "unavailable"}
+		<p role="status">{$t("Japan charts are temporarily unavailable. Try refreshing later.")}</p>
+	{/if}
 	<Chips
 		{chips}
 		on:click={() => {
@@ -99,29 +102,27 @@
 			on:enterViewport={async () => {
 				if (loading || hasData) return;
 				loading = true;
-				const response = await APIClient.fetch(
-					`/api/v1/home.json?itct=${encodeURIComponent(
-						continuations.clickTrackingParams,
-					)}${
-						params ? `&params=${encodeURIComponent(params)}` : ""
-					}&ctoken=${encodeURIComponent(
-						continuations.continuation,
-					)}&type=next&visitorData=${visitorData}`,
-				);
-				const data = await response.json();
-				// const {continuations, carousels} = data;
-				if (data.continuations) {
-					continuations = data.continuations;
-					queueMicrotask(() => {
-						carousels = [...carousels, ...data.carousels];
-					});
+				try {
+					const response = await APIClient.fetch(
+						`/api/v1/home.json?itct=${encodeURIComponent(
+							continuations.clickTrackingParams ?? "",
+						)}${
+							params ? `&params=${encodeURIComponent(params)}` : ""
+						}&ctoken=${encodeURIComponent(
+							continuations.continuation,
+						)}&type=next&visitorData=${encodeURIComponent(visitorData ?? "")}`,
+					);
+					if (!response.ok) throw new Error(response.statusText);
+					const nextPage = await response.json();
+					carousels = [...carousels, ...(nextPage.carousels ?? [])];
+					continuations = nextPage.continuations ?? {};
+					if (nextPage.visitorData) visitorData = nextPage.visitorData;
+					hasData = !continuations.continuation;
+				} catch (error) {
+					console.error("Home continuation failed", error);
+				} finally {
 					loading = false;
-					return hasData;
 				}
-				hasData =
-					data.continuations === undefined ||
-					data.continuations.ctoken === undefined;
-				return !loading;
 			}}
 		/>
 

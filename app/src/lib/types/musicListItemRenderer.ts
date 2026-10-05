@@ -8,6 +8,7 @@ export interface IListItemRenderer {
 	artistInfo: ArtistInfo;
 	explicit: boolean;
 	title: string;
+	translationKey?: string;
 	aspectRatio: string;
 	playerParams?: string;
 	playlistSetVideoId?: string;

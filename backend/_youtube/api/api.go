@@ -71,6 +71,10 @@ func Browse(browseId string, pageType PageType, params string,
 	if params != "" {
 		data.Params = params
 	}
+	// Charts have an explicit country selector; gl alone does not select it.
+	if browseId == "FEmusic_charts" {
+		data.FormData = &browseFormData{SelectedValues: []string{"JP"}}
+	}
 	resp, err := callAPI(urlAddress, data, client)
 	if err != nil {
 		return nil, err
@@ -79,12 +83,10 @@ func Browse(browseId string, pageType PageType, params string,
 
 }
 
-func handleContinuation(url string, itct string, ctoken string) string {
-	url += "&itct=" + itct
-	url += "&continuation=" + ctoken
-	url += "&ctoken=" + ctoken
-	url += "&type=next"
-	return url
+func handleContinuation(address string, itct string, ctoken string) string {
+	return address + "&" + url.Values{
+		"itct": {itct}, "continuation": {ctoken}, "ctoken": {ctoken}, "type": {"next"},
+	}.Encode()
 }
 
 func GetSearchSuggestions(query string, client ClientInfo) ([]byte, error) {
@@ -270,6 +272,11 @@ func callAPI(urlAddress string, requestPayload innertubeRequest, clientInfo Clie
 	if err != nil {
 		return nil, err
 	}
+	if requestPayload.BrowseID == "FEmusic_charts" {
+		ctx, cancel := context.WithTimeout(req.Context(), 15*time.Second)
+		defer cancel()
+		req = req.WithContext(ctx)
+	}
 	return doRequest(clientInfo, req, &requestPayload)
 }
 
@@ -377,8 +384,8 @@ func prepareInnertubeContext(clientInfo ClientInfo, visitorData *string) inntert
 		client.AndroidSDKVersion = clientInfo.AndroidSdkVersion
 	}
 	if visitorData != nil {
-		escape := url.QueryEscape(*visitorData)
-		client.VisitorData = escape
+		// This is JSON, not a query string. Keep the upstream token byte-for-byte.
+		client.VisitorData = *visitorData
 	}
 	return inntertubeContext{
 		Client: client,

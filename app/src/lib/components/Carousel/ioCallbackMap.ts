@@ -7,18 +7,12 @@ export const CALLBACK_MAP = {
 	) => {
 		const target = entry.target as HTMLImageElement;
 		if (entry.isIntersecting) {
-			target
-				.decode()
-				.finally(() => {
-					if (!target.dataset.src) return;
-
-					target.src = target.dataset.src;
-				})
-				.then(() => {
-					target.decode().finally(() => {
-						thisArg.unobserve(entry.target as HTMLElement);
-					});
-				});
+			thisArg.unobserve(target);
+			if (!target.dataset.src) return;
+			// An absent placeholder must not prevent loading the actual thumbnail.
+			target.src = target.dataset.src;
+			// The image's onerror handler supplies its visible fallback.
+			void target.decode().catch(() => {});
 		}
 	},
 } as const;

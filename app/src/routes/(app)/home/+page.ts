@@ -6,7 +6,7 @@ export const load = async ({ fetch, url, depends }) => {
 	const params = url.searchParams.get("params");
 
 	const data = await APIClient.fetch(
-        `/api/v1/home.json${params ? `?params=${params}` : ""}`,
+        `/api/v1/home.json${params ? `?params=${encodeURIComponent(params)}` : ""}`,
 	).then((r) => r.json());
 
 	return { ...data, params, path: url.pathname };

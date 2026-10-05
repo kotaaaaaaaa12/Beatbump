@@ -100,7 +100,7 @@ export const sectionHeading = derived(locale, language => (value: string | undef
 export function translateMetadataFor(language: Locale, value: unknown): string {
 	const text = String(value ?? "");
 	if (language === "en") return text;
-	const kinds: Record<string, string> = { song: "Song", album: "Album", single: "Single", ep: "EP", playlist: "Playlist", video: "Video", "music video": "Music video" };
+	const kinds: Record<string, string> = { chart: "Chart", song: "Song", album: "Album", single: "Single", ep: "EP", playlist: "Playlist", video: "Video", "music video": "Music video" };
 	const units: Record<string, string> = { song: "songs", track: "tracks", view: "views", subscriber: "subscribers", play: "plays", hour: "hours", hr: "hours", minute: "minutes", min: "minutes", second: "seconds", sec: "seconds", playlist: "playlists", listener: "listeners", like: "likes", album: "albums", artist: "artists", video: "videos", year: "years", month: "months", week: "weeks", day: "days" };
 	return text.split(/(\s*[•·]\s*)/).map(part => {
 		const trimmed = part.trim();

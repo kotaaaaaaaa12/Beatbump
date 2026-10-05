@@ -6,6 +6,7 @@ type innertubeRequest struct {
 	PlaylistId                       string                            `json:"playlistId,omitempty"`
 	PLayerParams                     string                            `json:"playerParams,omitempty"`
 	BrowseID                         string                            `json:"browseId,omitempty"`
+	FormData                         *browseFormData                   `json:"formData,omitempty"`
 	Query                            string                            `json:"query,omitempty"`
 	Input                            *string                           `json:"input,omitempty"`
 	Continuation                     *string                           `json:"continuation,omitempty"`
@@ -22,6 +23,9 @@ type innertubeRequest struct {
 	User                             *User                             `json:"user,omitempty"`
 	ClickTracking                    *ClickTracking                    `json:"clickTracking,omitempty"`
 	ServiceIntegrityDimensions       *ServiceIntegrityDimensions       `json:"serviceIntegrityDimensions,omitempty"`
+}
+type browseFormData struct {
+	SelectedValues []string `json:"selectedValues"`
 }
 type BrowseEndpointContextMusicConfig struct {
 	PageType string `json:"pageType"`
@@ -162,7 +166,7 @@ var (
 		ClientName:    "ANDROID_MUSIC",
 		ClientVersion: " 7.27.52",
 		//ClientId:      "62",
-				userAgent:     "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+		userAgent: "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
 		//ClientKey:     "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc", // seems like same ClientKey works for both clients
 		//DeviceModel: "iPhone16,2",
 		//userAgent:   "com.google.ios.youtubemusic/7.27.0 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)",
@@ -196,7 +200,7 @@ var (
 		ClientName:    "TVHTML5",
 		ClientVersion: "7.20240925.00.00",
 		ClientId:      "7",
-		userAgent: "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)",
+		userAgent:     "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)",
 		//OsName:        "Macintosh",
 		//OsVersion:     "10.15",
 		//Platform:      "DESKTOP",
@@ -209,7 +213,6 @@ var (
 		ClientVersion: "1.0",
 		ClientId:      "75",
 	}
-
 
 	TVHTML5_SIMPLY_EMBEDDED_PLAYER = ClientInfo{
 		ClientName:    "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
