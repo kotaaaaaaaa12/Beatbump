@@ -350,11 +350,13 @@ func getHttpClient() http.Client {
 
 func prepareInnertubeContext(clientInfo ClientInfo, visitorData *string) inntertubeContext {
 	client := innertubeClient{
-		//	HL:            "en",
-		//	GL:            "US",
+		// Request Japanese content while keeping upstream labels stable for parsers.
+		HL:            "en",
+		GL:            "JP",
 		ClientName:    clientInfo.ClientName,
 		ClientVersion: clientInfo.ClientVersion,
-		//	TimeZone:      "UTC",
+		TimeZone:      "Asia/Tokyo",
+		UTCOffset:     540,
 	}
 	if clientInfo.DeviceModel != "" {
 		client.DeviceModel = clientInfo.DeviceModel

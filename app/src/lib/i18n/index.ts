@@ -44,7 +44,7 @@ export function translateFor(language: Locale, message: string, params: Paramete
 export const t = derived(locale, language => (message: string | undefined, params: Parameters = {}) => translateFor(language, message ?? "", params));
 // Upstream section labels vary in capitalization and whitespace. Keep this
 // normalization confined to headings so song and artist titles stay untouched.
-const normalizeHeading = (value: string) => value.trim().replace(/\s+/g, " ").replace(/[’‘]/g, "'").replace(/&/g, "and").replace(/[.!?:]+$/, "").toLowerCase();
+const normalizeHeading = (value: string) => value.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").trim().replace(/\s+/g, " ").replace(/[’‘]/g, "'").replace(/\s*&\s*/g, " and ").replace(/[.!?:]+$/, "").toLowerCase();
 const headingKeys = new Map(Object.keys(en).map(key => [normalizeHeading(key), key]));
 // Compose only known structural labels, rather than translating arbitrary titles.
 const headingCollections: Record<string, string> = {
@@ -73,6 +73,14 @@ export function translateSectionHeadingFor(language: Locale, value: string | und
 	const text = original.trim().replace(/\s+/g, " ");
 	const key = headingKeys.get(normalizeHeading(text));
 	if (key) return translateFor(language, key);
+	const shorts = /^shorts featured section ([a-z]{2})$/.exec(normalizeHeading(text));
+	if (shorts) {
+		const code = shorts[1] === "uk" ? "GB" : shorts[1].toUpperCase();
+		const regionKey = "Region " + code;
+		return translateFor(language, "Shorts Featured Section {region}", {
+			region: Object.prototype.hasOwnProperty.call(en, regionKey) ? translateFor(language, regionKey) : code,
+		});
+	}
 	const collection = /^(featured|trending|popular|recommended|new|top|recently added|recently played) (community |featured )?(playlists|albums|artists|songs|tracks|music videos|videos|mixes|singles|releases)( for you)?$/.exec(normalizeHeading(text));
 	if (collection) {
 		const [, modifier, qualifier, kind, personalized] = collection;
