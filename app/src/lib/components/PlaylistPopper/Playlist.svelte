@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	export let item = {};
 	export let i;
 	import { createEventDispatcher } from "svelte";
@@ -16,12 +17,12 @@
 			src={item?.thumbnail}
 			width="64"
 			height="64"
-			alt="thumbnail"
+			alt={$t("thumbnail")}
 		/>
 	</div>
 	<div class="list-item-body">
 		<p class="title">{item.name}</p>
-		<p>{Array.isArray(item.items) ? item?.items.length : "??"} songs</p>
+		<p>{$t("{count} songs", { count: Array.isArray(item.items) ? item.items.length : "??" })}</p>
 	</div>
 </li>
 

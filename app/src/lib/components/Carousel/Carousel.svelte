@@ -1,6 +1,7 @@
 <svelte:options immutable={true} />
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import { page } from "$app/stores";
 	import Icon from "$components/Icon/Icon.svelte";
@@ -134,16 +135,16 @@
 		<p class="subheading">{header?.subheading}</p>
 	{/if}
 	<span class="h2">
-		{header.title}
+		{$t(header.title)}
 	</span>
 
 	{#if !header.title.includes("Videos") && header.browseId}
 		<a href={href}>
-			<small>See All</small>
+			<small>{$t("See All")}</small>
 		</a>
 	{:else if isArtistPage && header.title.includes("Videos")}
 		<a href={urls.playlist}>
-			<small>See All</small>
+			<small>{$t("See All")}</small>
 		</a>
 	{/if}
 </div>

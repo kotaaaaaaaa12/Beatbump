@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { getContext } from "svelte";
 	import Icon from "../Icon/Icon.svelte";
 
@@ -19,7 +20,7 @@
 		color="white"
 		size="1.25em"
 	/>
-	<div class="po-text">{text}</div>
+	<div class="po-text">{$t(text)}</div>
 </div>
 
 <style lang="scss">

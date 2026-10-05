@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { alertHandler } from "$lib/stores/stores";
 
 	import { createEventDispatcher } from "svelte";
@@ -39,23 +40,23 @@
 				src={thumbnail}
 				width="200"
 				height="200"
-				alt="thumbnail"
+				alt={$t("thumbnail")}
 			/>
 		{:else}
 			<img
 				src={"data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIxMDAgLTEzLjA4OSA1MDAgNTAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGZpbGw9IiNhNmE2YTYiIGQ9Ik0xMDAtMTMuMDg5aDUwMHY1MDBIMTAweiIvPjxwYXRoIGQ9Ik0zNjUuMTIzIDMzNy4yMzdoLTMydi03OS41NzZoLTc5LjU3NXYtMzJoNzkuNTc1di03OS41NzVoMzJ2NzkuNTc1SDQ0NC43djMyaC03OS41NzZ6IiBmaWxsPSIjZDhkOGQ4Ii8+PC9zdmc+"}
 				width="200"
 				height="200"
-				alt="thumbnail"
+				alt={$t("thumbnail")}
 			/>
 		{/if}
 		<div class="input-row">
-			<label class="file"
+			<label class="file" data-label={$t("Choose an image")} data-select={$t("Select")}
 				><input
 					type="file"
 					accept=".jpg,.png,.webp,.jpeg"
 					on:change={readFiles}
-				/><span class="file-button" /></label
+				/><span class="file-button" data-label={$t("Choose an image")} data-select={$t("Select")} /></label
 			><!-- WIP -->
 		</div>
 	</div>
@@ -69,11 +70,11 @@
 		}}
 	>
 		<div class="input-row">
-			<label for="">Title</label>
+			<label for="">{$t("Title")}</label>
 			<div class="input"><input type="text" /></div>
 		</div>
 		<div class="input-row">
-			<label for="">Description</label>
+			<label for="">{$t("Description")}</label>
 			<div class="input"><input type="text" /></div>
 		</div>
 		<button
@@ -83,7 +84,7 @@
 					type: "error",
 				});
 				dispatch("close");
-			}}>Submit</button
+			}}>{$t("Submit")}</button
 		>
 	</form>
 </section>
@@ -137,7 +138,7 @@
 	}
 
 	.file-button::before {
-		content: "Choose an image";
+		content: attr(data-label);
 		display: inline-block;
 		background: var(--form-bg);
 		border: 0.0625rem solid hsl(0deg 0% 66.7% / 21.9%);
@@ -167,7 +168,7 @@
 		right: 0;
 		bottom: 0;
 		// left:0;left
-		content: "Select";
+		content: attr(data-select);
 		color: rgb(238 238 238);
 		background: #353535b2;
 		display: block;

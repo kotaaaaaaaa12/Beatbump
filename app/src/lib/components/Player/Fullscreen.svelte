@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { navigating } from "$app/stores";
 	import Description from "$components/ArtistPageHeader/Description/Description.svelte";
 	import Carousel from "$components/Carousel/Carousel.svelte";
@@ -396,12 +397,12 @@
 								class:active={$mode === "video"}
 								on:click={() => {
 									$mode = "video";
-								}}>Video</button
+								}}>{$t("Video")}</button
 							><button
 								class:active={$mode === "audio"}
 								on:click={() => {
 									$mode = "audio";
-								}}>Audio</button
+								}}>{$t("Audio")}</button
 							>
 						</div>
 					</div>
@@ -418,7 +419,7 @@
 								width={thumbnail?.width}
 								height={thumbnail?.height}
 								src={thumbnail?.url ?? ""}
-								alt="thumbnail"
+								alt={$t("thumbnail")}
 							/>
                             </div>
 						{:else}
@@ -608,7 +609,7 @@
 							<div class="pad">
 								{#if $related.description.description}
 									<div class="mb-2">
-										<span class="h2">{$related?.description?.header}</span>
+										<span class="h2">{$t($related?.description?.header)}</span>
 										<Description
 											description={$related.description.description}
 										/>

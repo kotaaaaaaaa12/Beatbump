@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import { page } from "$app/stores";
 	import { clickOutside } from "$lib/actions/clickOutside";
@@ -16,6 +17,7 @@
 	let displayName = "";
 	let checked = true;
 	let sessionURL = "";
+	let copied = false;
 
 	async function handleSubmit() {
 		if (!displayName) return;
@@ -104,13 +106,13 @@
 			<div class="modal-container">
 				{#if step === 0}
 					<div class="modal-header">
-						<span class="h2">New Group Session</span>
+						<span class="h2">{$t("New Group Session")}</span>
 					</div>
 					<br />
 					<div class="modal-body">
 						<form on:submit={handleSubmit}>
 							<div class="container">
-								<p>Enter your display name:</p>
+								<p>{$t("Enter your display name:")}</p>
 								<div class="input">
 									<input
 										type=""
@@ -120,10 +122,10 @@
 								</div>
 							</div>
 							<div class="container">
-								<p class="h4 my-2">Settings</p>
+								<p class="h4 my-2">{$t("Settings")}</p>
 								<div>
 									<p style="display:inline-block;">
-										Force Sync
+										{$t("Force Sync")}
 										<input
 											type="checkbox"
 											style="vertical-align: middle; margin-left: 1em;"
@@ -136,7 +138,7 @@
 									<Button
 										type="submit"
 										disabled={displayName ? false : true}
-										on:click={handleSubmit}>Create Group Session</Button
+										on:click={handleSubmit}>{$t("Create Group Session")}</Button
 									>
 								</div>
 								<br />
@@ -145,30 +147,29 @@
 					</div>
 				{:else if step === 1}
 					<div class="modal-header">
-						<span class="h2">Created Group Session!</span>
+						<span class="h2">{$t("Created Group Session!")}</span>
 					</div>
 					<div class="modal-body">
 						<p>
-							Your group session has been created! You can invite anyone to join
-							your session by sending them the link found below!
+							{$t("Your group session has been created! You can invite anyone to join your session by sending them the link found below!")}
 						</p>
 						<p />
-						<p>Your Session URL:</p>
+						<p>{$t("Your Session URL:")}</p>
 						<div class="url"><p>{sessionURL}</p></div>
 						<div class="container">
 							<span
 								class="copy link"
 								on:click={async (event) => {
 									if (!browser) return;
-									const target = event.currentTarget;
+
 									await navigator.clipboard.writeText(sessionURL);
-									target.innerText = "Copied!";
+									copied = true;
 									setTimeout(() => {
-										target.innerText = "Copy";
+										copied = false;
 									}, 1500);
 								}}
 							>
-								Copy
+								{$t(copied ? "Copied!" : "Copy")}
 							</span>
 						</div>
 					</div>
@@ -178,7 +179,7 @@
 				class="danger"
 				on:click={() => {
 					showGroupSessionCreator.set(false);
-				}}>Close</Button
+				}}>{$t("Close")}</Button
 			>
 		</div>
 	</div>

@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 </script>
 
 <div class="groupSessionManager-frame">
 	<div class="groupSessionManager-handle">
 		<hr />
 	</div>
-	<p>TESTING!</p>
+	<p>{$t("TESTING!")}</p>
 </div>
 
 <style

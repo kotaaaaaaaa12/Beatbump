@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { IDBService } from "$lib/workers/db/service";
 	import { onMount } from "svelte";
 	import list from "$lib/stores/list";
@@ -65,11 +66,11 @@
 </script>
 
 <main>
-	<h1>Your Favorites</h1>
+	<h1>{$t("Your Favorites")}</h1>
 	<section>
 		<div class="filter">
 			<div class="ctx-item">
-				<label for="select">Sort</label>
+				<label for="select">{$t("Sort")}</label>
 				<div class="select">
 					<select
 						id="select"
@@ -77,7 +78,7 @@
 						on:change={options[value].action}
 					>
 						{#each options as option, i (option.params)}
-							<option value={i}>{option.label}</option>
+							<option value={i}>{$t(option.label)}</option>
 						{/each}
 					</select>
 				</div>
@@ -106,7 +107,7 @@
 				</DraggableList>
 			{:else}
 				<div class="empty-state">
-					<p>No favorites yet. Add some songs to your favorites to see them here!</p>
+					<p>{$t("No favorites yet. Add some songs to your favorites to see them here!")}</p>
 				</div>
 			{/if}
 		</section>

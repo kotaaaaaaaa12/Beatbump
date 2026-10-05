@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { Grid } from "$lib/components/Grid";
 	import Header from "$lib/components/Layouts/Header.svelte";
 	import type { PageData } from "./$types";
@@ -11,9 +12,9 @@
 </script>
 
 <Header
-	title="Explore"
+	title={$t("Explore")}
 	url={path}
-	desc="Find the perfect playlist that'll match your mood, or fit any occasion."
+	desc={$t("Find the perfect playlist that'll match your mood, or fit any occasion.")}
 />
 <main>
 	{#each response as section}
@@ -28,7 +29,7 @@
 				class="box"
 				href={`/explore/${item.endpoint.params}`}
 			>
-				{item.text}
+				{$t(item.text)}
 			</a>
 		</Grid>
 	{/each}

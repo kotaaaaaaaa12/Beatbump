@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Listing from "$lib/components/Item/Listing.svelte";
 	import { IDBService } from "$lib/workers/db/service";
 	import { onMount, setContext } from "svelte";
@@ -40,11 +41,11 @@
 </script>
 
 <main>
-	<h1>Your Songs</h1>
+	<h1>{$t("Your Songs")}</h1>
 	<section>
 		<div class="filter">
 			<div class="ctx-item">
-				<label for="select">Sort</label>
+				<label for="select">{$t("Sort")}</label>
 				<div class="select">
 					<select
 						id="select"
@@ -52,7 +53,7 @@
 						on:change={options[value].action}
 					>
 						{#each options as option, i (option.params)}
-							<option value={i}>{option.label}</option>
+							<option value={i}>{$t(option.label)}</option>
 						{/each}
 					</select>
 				</div>

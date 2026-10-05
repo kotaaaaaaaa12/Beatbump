@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { groupSession } from "$lib/stores";
 	import Header from "$lib/components/Layouts/Header.svelte";
 	import Button from "$lib/components/Button";
@@ -25,18 +26,18 @@
 </script>
 
 <Header
-	title={`${hostDisplayName}'s Beatbump Group Session`}
-	desc={`Join ${hostDisplayName}'s Group Session on Beatbump`}
+	title={$t("Join {name}'s Group Session", { name: hostDisplayName })}
+	desc={$t("Join {name}'s Group Session", { name: hostDisplayName })}
 	{url}
 />
 <main>
-	<h2>Join {hostDisplayName}'s Group Session</h2>
-	<p>Please enter a display name below in order to continue with joining.</p>
+	<h2>{$t("Join {name}'s Group Session", { name: hostDisplayName })}</h2>
+	<p>{$t("Please enter a display name below in order to continue with joining.")}</p>
 	<br />
 	<div class="input">
 		<input
 			type="text"
-			placeholder="Display Name"
+			placeholder={$t("Display Name")}
 			bind:value={clientDisplayName}
 		/>
 	</div>
@@ -44,7 +45,7 @@
 
 	<Button
 		disabled={!clientDisplayName}
-		on:click={joinSession}>Join Session</Button
+		on:click={joinSession}>{$t("Join Session")}</Button
 	>
 </main>
 

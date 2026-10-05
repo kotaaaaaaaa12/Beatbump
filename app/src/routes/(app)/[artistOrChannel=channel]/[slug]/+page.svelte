@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { page } from "$app/stores";
 	import ArtistPageHeader from "$lib/components/ArtistPageHeader/ArtistPageHeader.svelte";
 	import Carousel from "$lib/components/Carousel/Carousel.svelte";
@@ -29,7 +30,7 @@
 </script>
 
 <Header
-	title={header?.name === undefined ? "Artist" : header?.name}
+	title={header?.name === undefined ? $t("Artist") : header?.name}
 	desc={header?.name}
 	url={$page.url.pathname}
 	image={header?.thumbnails && header?.thumbnails[0]?.url}
@@ -46,12 +47,12 @@
 			{#if songs?.items?.length > 0}
 				<section class="song-list resp-content-width">
 					<div class="header">
-						<span class="h2">Songs</span>
+						<span class="h2">{$t("Songs")}</span>
                         {#if songs?.header?.browseId }
                             <a
                                 style="white-space:pre; display: inline-block;"
                                 href={`/playlist/${songs?.header?.browseId}?params=${songs?.header?.params}`}
-                            ><small>See All</small></a>
+                            ><small>{$t("See All")}</small></a>
                         {/if}
 
 					</div>

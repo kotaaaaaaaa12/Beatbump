@@ -96,6 +96,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import type { Artist, Thumbnail } from "$lib/types";
 
 	import Icon from "../Icon/Icon.svelte";
@@ -116,7 +117,7 @@
 <div
 	class="dd-button"
 	role="button"
-	aria-label="menu"
+	aria-label={$t("menu")}
 	use:dropdown={{ items, metadata, type }}
 	{tabindex}
 >

@@ -1,4 +1,5 @@
 <script>
+	import { t } from "$lib/i18n";
 	import { dev } from "$app/environment";
 
 	import { goto } from "$app/navigation";
@@ -34,15 +35,15 @@
 				src="/logo.svg"
 				width="128"
 				height="128"
-				alt="logo"
+				alt={$t("logo")}
 			/>
 		</div>
 	</a>
-	<h1>Uh-Oh!</h1>
-	<h5>Looks like you hit a dead end!</h5>
+	<h1>{$t("Uh-Oh!")}</h1>
+	<h5>{$t("Looks like you hit a dead end!")}</h5>
 
-	<p>Don't worry though, we got you covered.</p>
-	<em>Redirecting in {redir}</em>
+	<p>{$t("Don't worry though, we got you covered.")}</p>
+	<em>{$t("Redirecting in {seconds} seconds", { seconds: redir })}</em>
 </main>
 
 <style lang="scss">

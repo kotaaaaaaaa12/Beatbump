@@ -297,6 +297,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { page as PageStore } from "$app/stores";
 	import {
 		isMobileMQ,
@@ -483,7 +484,7 @@
 					src={item.thumbnails[0]?.url}
 					width={item.thumbnails[0]?.width}
 					height={item.thumbnails[0]?.height}
-					alt="thumbnail"
+					alt={$t("thumbnail")}
 				/>
 			</div>
 		{/if}
@@ -497,7 +498,7 @@
 						fill="hsla(0, 0%, 95%, 0.7)"
 						size="12px"
 					>
-						<span class="sr-only">Explicit</span>
+						<span class="sr-only">{$t("Explicit")}</span>
 					</Icon>
 				{/if}
 			</span>

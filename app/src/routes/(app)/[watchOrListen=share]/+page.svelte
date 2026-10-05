@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Icon from "$lib/components/Icon/Icon.svelte";
 	import Listing from "$lib/components/Item/Listing.svelte";
 	import list from "$lib/stores/list";
@@ -49,7 +50,7 @@
 				src={thumbnails[thumbnails.length - 1]?.url}
 				width={thumbnails[thumbnails.length - 1]?.width}
 				height={thumbnails[thumbnails.length - 1]?.height}
-				alt={`Thumbnail for ${title}`}
+				alt={$t("Thumbnail for {title}", { title })}
 			/>
 		</div>
 		<div class="body">
@@ -65,12 +66,12 @@
 					name="play"
 					size="1.25em"
 					color="black"
-				/><span class="text">Start Listening</span></button
+				/><span class="text">{$t("Start Listening")}</span></button
 			>
 		</div>
 	</header>
 	<section class="related">
-		<span class="h2">Related Tracks</span>
+		<span class="h2">{$t("Related Tracks")}</span>
 		<div class="results">
 			{#each related?.results as result}
 				<Listing data={result} />

@@ -8,7 +8,7 @@
 	export let url;
 	export let image = "/favicon.png";
 
-	tagStore.init($SITE_ORIGIN_URL, title, url, desc, image);
+	$: tagStore.init($SITE_ORIGIN_URL, title, url, desc, image);
 </script>
 
 <svelte:head>

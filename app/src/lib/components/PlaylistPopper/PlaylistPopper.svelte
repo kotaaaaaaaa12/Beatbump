@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { IDBService } from "$lib/workers/db/service";
 
 	import { showAddToPlaylistPopper } from "$lib/stores/stores";
@@ -57,7 +58,7 @@
 		}}
 		bind:hasFocus
 	>
-		<h1 slot="header">Add to Playlist</h1>
+		<h1 slot="header">{$t("Add to Playlist")}</h1>
 		<div class="list">
 			<List
 				on:click={async (e) => {

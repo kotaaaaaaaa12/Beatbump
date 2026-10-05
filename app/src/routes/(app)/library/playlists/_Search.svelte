@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Icon from "$components/Icon/Icon.svelte";
 
 	import { debounce } from "$lib/utils/sync";
@@ -21,7 +22,7 @@
 >
 	<div
 		role="button"
-		aria-label="search button"
+		aria-label={$t("search button")}
 		class="searchBtn"
 		on:click={handleSubmit}
 	>
@@ -38,7 +39,7 @@
 		aria-autocomplete="list"
 		autocorrect="off"
 		type="search"
-		placeholder="Search"
+		placeholder={$t("Search")}
 		on:keyup={(e) => {
 			if (e.shiftKey && e.ctrlKey && e.repeat) return;
 			handleInput(e);

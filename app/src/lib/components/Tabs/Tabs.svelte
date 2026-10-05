@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import type { TabItem } from ".";
 	import Tab from "../Tab/Tab.svelte";
 	export let tabs: TabItem[] = [
@@ -30,7 +31,7 @@
 	{#each tabs as tab}
 		<Tab
 			active={active === tab.id}
-			on:click={tab.action}>{tab.text}</Tab
+			on:click={tab.action}>{$t(tab.text)}</Tab
 		>
 	{/each}
 </div>

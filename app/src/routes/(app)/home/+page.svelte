@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { invalidate } from "$app/navigation";
 	import Chips from "$components/Chips/Chips.svelte";
 	import viewport from "$lib/actions/viewport";
@@ -37,9 +38,9 @@
 	{/if}
 </svelte:head>
 <Header
-	title="Home"
+	title={$t("Home")}
 	url={path}
-	desc="Listen to the hottest tracks from your favorite artists, and discover new playlists and mixes."
+	desc={$t("Listen to the hottest tracks from your favorite artists, and discover new playlists and mixes.")}
 />
 
 <div class="immersive-thumbnail">
@@ -70,7 +71,7 @@
 				height={headerThumbnail[0].height}
 				decoding="async"
 				class="immer-img"
-				alt="large background header"
+				alt={$t("large background header")}
 			/>
 		</picture>
 	{/if}

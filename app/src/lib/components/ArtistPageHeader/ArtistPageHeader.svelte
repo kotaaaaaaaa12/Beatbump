@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Button from "$components/Button/Button.svelte";
 	import { scrollObserver } from "$lib/actions/scrollObserver";
 	import type { ArtistPage } from "$lib/parsers";
@@ -121,7 +122,7 @@
 				loading="eager"
 				src={thumbnail[1]?.url}
 				id="artist_img"
-				alt="Artist Thumbnail"
+				alt={$t("Artist Thumbnail")}
 			/>
 		</picture>
 		<div class="artist-content">
@@ -161,7 +162,7 @@
 							class="content-thumbnail"
 							loading="eager"
 							src={header?.foregroundThumbnails[1]?.url}
-							alt="Artist Thumbnail"
+							alt={$t("Artist Thumbnail")}
 						/>
 					</picture>
 				{/if}
@@ -182,7 +183,7 @@
 								list.initAutoMixSession({
 									config: { playerParams: header.buttons.radio?.params },
 									playlistId: header.buttons.radio?.playlistId,
-								})}><span class="button-text"> Play Radio</span></Button
+								})}><span class="button-text"> {$t("Play Radio")}</span></Button
 						>
 					{/if}
 					{#if header?.buttons?.shuffle !== false}
@@ -194,7 +195,7 @@
 									videoId: header.buttons.shuffle?.videoId,
 									config: { playerParams: header.buttons.shuffle?.params },
 									playlistId: header.buttons.shuffle?.playlistId,
-								})}><span class="button-text"> Shuffle</span></Button
+								})}><span class="button-text"> {$t("Shuffle")}</span></Button
 						>
 					{/if}
 				</div>

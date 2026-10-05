@@ -79,6 +79,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import { goto } from "$app/navigation";
 	import Icon from "$components/Icon/Icon.svelte";
@@ -200,7 +201,7 @@
 				class="container"
 				style="gap:0.20125em;"
 			>
-				<span>Not Playing</span>
+				<span>{$t("Not Playing")}</span>
 				<div />
 			</div>
 		{/if}

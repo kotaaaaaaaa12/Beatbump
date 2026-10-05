@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { page } from "$app/stores";
 	import Header from "$lib/components/Layouts/Header.svelte";
 	import InfoBox from "$lib/components/Layouts/InfoBox.svelte";
@@ -67,7 +68,7 @@
 
 <Header
 	title={releaseInfo.title}
-	desc={`${releaseInfo.title} by ${releaseInfo?.artist[0]?.name} on Beatbump`}
+	desc={$t("{title} by {artist} on Beatbump", { title: releaseInfo.title, artist: releaseInfo?.artist[0]?.name })}
 	url={path + `?id=${id}`}
 	image={thumbnail}
 />

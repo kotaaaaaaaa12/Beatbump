@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Icon from "../Icon/Icon.svelte";
 	import Select from "./Select.svelte";
 	export let value = 0;
@@ -26,7 +27,7 @@
 			size="1em"
 		/></span
 	>
-	<span class="title">Title</span>
+	<span class="title">{$t("Title")}</span>
 	<span class="length">
 		<Icon
 			name="clock"

@@ -1,6 +1,7 @@
 <svelte:options immutable={true} />
 
 <script>
+	import { t } from "$lib/i18n";
     import {browser} from "$app/environment";
     import {goto} from "$app/navigation";
     import Icon from "$components/Icon/Icon.svelte";
@@ -49,7 +50,7 @@
 					navBack();
 				}}
                 class="nav-icon icon-btn no-style"
-                aria-label="Back"
+                aria-label={$t("Back")}
             >
                 <Icon
                     name="chevron-left"
@@ -68,8 +69,8 @@
                     width="32"
                     height="32"
                     src="/logo.svg"
-                    alt="logo"
-                    title="Beatbump Home"
+                    alt={$t("logo")}
+                    title={$t("Beatbump Home")}
                 />
             </a>
         {:else}
@@ -87,8 +88,8 @@
                     width="32"
                     height="32"
                     src="/logo.svg"
-                    alt="logo"
-                    title="Beatbump Home"
+                    alt={$t("logo")}
+                    title={$t("Beatbump Home")}
                 />
             </a>
         {/if}
@@ -102,8 +103,8 @@
 			}}
             class="nav-icon icon-btn no-style"
             use:tooltip
-            data-tooltip="Home"
-            aria-label="Home"
+            data-tooltip={$t("Home")}
+            aria-label={$t("Home")}
             class:active={key.includes("home")}
         >
             <Icon
@@ -120,8 +121,8 @@
 			}}
             class="nav-icon icon-btn no-style"
             use:tooltip
-            data-tooltip="Trending"
-            aria-label="Trending"
+            data-tooltip={$t("Trending")}
+            aria-label={$t("Trending")}
             class:active={key.includes("trending")}
         >
             <Icon
@@ -136,8 +137,8 @@
 				$fullscreenStore && fullscreenStore.set("closed");
 				goto("/library");
 			}}
-            data-tooltip="Library"
-            aria-label="library"
+            data-tooltip={$t("Library")}
+            aria-label={$t("library")}
             class="nav-icon icon-btn no-style"
             class:active={key.includes("library")}
         >
@@ -153,8 +154,8 @@
 				$fullscreenStore && fullscreenStore.set("closed");
 				goto("/favorites");
 			}}
-            data-tooltip="Favorites"
-            aria-label="favorites"
+            data-tooltip={$t("Favorites")}
+            aria-label={$t("favorites")}
             class="nav-icon icon-btn no-style"
             class:active={key.includes("favorites")}
         >
@@ -170,8 +171,8 @@
 				$fullscreenStore && fullscreenStore.set("closed");
 				goto("/downloads");
 			}}
-            data-tooltip="Downloads"
-            aria-label="downloads"
+            data-tooltip={$t("Downloads")}
+            aria-label={$t("Downloads")}
             class="nav-icon icon-btn no-style"
             class:active={key.includes("downloads")}
         >
@@ -191,7 +192,7 @@
 				hidden = !hidden;
 				fullscreenStore.set("closed");
 			}}
-            aria-label="Search"
+            aria-label={$t("Search")}
         >
             <Icon
                 name="search"
@@ -200,7 +201,7 @@
         </button>
 
         <button
-            aria-label="Settings"
+            aria-label={$t("Settings")}
             class="icon-btn btn-settings"
             on:click={() => {
 				$fullscreenStore && fullscreenStore.set("closed");
@@ -220,7 +221,7 @@
         class="sr-only"
         on:click={() => {
 			hidden = !hidden;
-		}}>Close Search Dialogue
+		}}>{$t("Close Search Dialogue")}
     </button
     >
     <!-- svelte-ignore a11y-no-static-element-interactions -->

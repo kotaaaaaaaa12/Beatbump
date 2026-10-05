@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import Icon from "$lib/components/Icon/Icon.svelte";
 	import { queryParams } from "$lib/utils";
@@ -133,7 +134,7 @@
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
 			<div
 				role="button"
-				aria-label="search button"
+				aria-label={$t("search button")}
 				class="searchBtn"
 				on:click={handleSubmit}
 			>
@@ -144,14 +145,14 @@
 			</div>
 			<!-- svelte-ignore a11y-autofocus -->
 			<input
-				aria-placeholder="Search"
+				aria-placeholder={$t("Search")}
 				id="searchBox"
 				autocomplete="off"
 				aria-autocomplete="list"
 				autofocus={type === "inline" ? true : false}
 				autocorrect="off"
 				type="search"
-				placeholder="Search"
+				placeholder={$t("Search")}
 				on:keyup={(e) => {
 					if (e.shiftKey && e.ctrlKey && e.repeat) return;
 					typeahead();
@@ -171,7 +172,7 @@
 			class="suggestions"
 		>
 			{#if showRecentSearches}
-				<li class="recent-searches-header">Recent Searches</li>
+				<li class="recent-searches-header">{$t("Recent Searches")}</li>
 				{#each recentSearches as recentQuery}
 					<li
 						tabindex="0"
@@ -222,9 +223,9 @@
 			class="select search-select-wrapper"
 			class:inline={type === "inline" ? true : false}
 		>
-			<select bind:value={filter}>
+			<select bind:value={filter} aria-label={$t("Search category")}>
 				{#each searchFilter as option (option.params)}
-					<option value={option.params}>{option.label}</option>
+					<option value={option.params}>{$t(option.label)}</option>
 				{/each}
 			</select>
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { createEventDispatcher } from "svelte";
 	import Playlist from "./Playlist.svelte";
 	export let items = [];
@@ -9,7 +10,7 @@
 	<li>
 		<button
 			on:click={() => dispatch("create")}
-			class="create">Create New Playlist</button
+			class="create">{$t("Create New Playlist")}</button
 		>
 	</li>
 	{#if items.length > 0}

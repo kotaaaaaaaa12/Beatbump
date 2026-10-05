@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { APIClient } from "$lib/api";
 	import { showDownloadSongPopper } from "$lib/stores/stores";
 	import { createEventDispatcher } from "svelte";
@@ -48,7 +49,7 @@
 		}}
 		bind:hasFocus
 	>
-		<h1 slot="header">Download Song</h1>
+		<h1 slot="header">{$t("Download Song")}</h1>
 		<div class="content">
 			<div class="info">
 				<h3>{item?.title}</h3>
@@ -56,7 +57,7 @@
 			</div>
 
 			<div class="form-group">
-				<label for="limit">Related Songs to Download (0-500)</label>
+				<label for="limit">{$t("Related Songs to Download (0-500)")}</label>
 				<input
 					type="number"
 					id="limit"
@@ -72,11 +73,11 @@
 					class="btn secondary"
 					on:click={() =>
 						showDownloadSongPopper.set({ state: false, item: undefined })}
-					>Cancel</button
+					>{$t("Cancel")}</button
 				>
 				<button
 					class="btn primary"
-					on:click={handleDownload}>Download</button
+					on:click={handleDownload}>{$t("Download")}</button
 				>
 			</div>
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	export let value: number;
 	export let options: { params: string; action: () => void; label: string }[] =
 		[];
@@ -6,7 +7,7 @@
 
 <label
 	class="secondary"
-	for="select">Sort</label
+	for="select">{$t("Sort")}</label
 >
 
 <div class="select">
@@ -18,7 +19,7 @@
 		{#each options as option, i (option.params)}
 			<option
 				value={i}
-				selected={value === i}>{option.label}</option
+				selected={value === i}>{$t(option.label)}</option
 			>
 		{/each}
 	</select>

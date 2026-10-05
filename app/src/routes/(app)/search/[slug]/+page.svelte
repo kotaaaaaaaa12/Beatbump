@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import type { PageData } from "./$types";
 
 	import { page } from "$app/stores";
@@ -86,8 +87,8 @@
 </script>
 
 <Header
-	title="Search"
-	desc={`Search results for ${decodeURIComponent($page.params.slug)}`}
+	title={$t("Search")}
+	desc={$t("Search results for {query}", { query: decodeURIComponent($page.params.slug) })}
 	url={$page.url.pathname}
 />
 
@@ -101,7 +102,7 @@
 				class="container music-shelf resp-content-width"
 				class:max-height={filter !== "all"}
 			>
-				<span class="h3">{result.header.title}</span>
+				<span class="h3">{$t(result.header.title)}</span>
 				{#if filter !== "all"}
 					<div
 						class="music-shelf-list"
@@ -133,7 +134,7 @@
 								href={`${$page.params.slug}?filter=${result.header.title
 									.replace(/\s/g, "_")
 									.toLowerCase()}`}
-								class="link secondary">Show All</a
+								class="link secondary">{$t("Show All")}</a
 							>
 						</div>
 					{/if}

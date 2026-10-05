@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { message } from "$lib/i18n";
 	import { alertHandler } from "$lib/stores/stores";
 	import { flip } from "svelte/animate";
 	import { expoOut } from "svelte/easing";
@@ -19,7 +20,7 @@
 			style=""
 			class={`alert m-alert-${notif.type}`}
 		>
-			{notif.msg}
+			{$message(notif.msg, notif.type === "error")}
 		</div>
 	{/each}
 </div>

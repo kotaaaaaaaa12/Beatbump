@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { createEventDispatcher, onMount, tick } from "svelte";
 	import vp from "$lib/actions/viewport";
 	import type { Item } from "$lib/types";
@@ -152,7 +153,7 @@
 			<svelte-virtual-list-row>
 				<slot
 					item={row.data}
-					index={row.index}>Missing template</slot
+					index={row.index}>{$t("Missing template")}</slot
 				>
 			</svelte-virtual-list-row>
 		{/each}

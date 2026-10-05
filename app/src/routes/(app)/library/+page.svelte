@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import Modal from "$components/Modal";
 	import Icon from "$lib/components/Icon/Icon.svelte";
@@ -70,7 +71,7 @@
 		}}
 		hasFocus={showImportModal}
 	>
-		<h1 slot="header">Import your data</h1>
+		<h1 slot="header">{$t("Import your data")}</h1>
 		<div class="container">
 			<input
 				type="file"
@@ -79,14 +80,14 @@
 				accept=".json"
 				bind:files
 			/>
-			<p>Import your data using the form above!</p>
+			<p>{$t("Import your data using the form above!")}</p>
 		</div>
 	</Modal>
 {/if}
 
 <main class="resp-content-width">
 	<header>
-		<h1>Your Library</h1>
+		<h1>{$t("Your Library")}</h1>
 		<button
 			on:click={() => {
 				showSyncModal = true;
@@ -95,7 +96,7 @@
 				name="send"
 				size="1.1em"
 			/>
-			<span class="btn-text">Sync Your Data</span></button
+			<span class="btn-text">{$t("Sync Your Data")}</span></button
 		>
 		<div style="margin-block-start: 0.5em;">
 			<Button
@@ -111,7 +112,7 @@
 					name="upload"
 					size="1.1em"
 				/>
-				<span class="btn-text">Export Data</span></Button
+				<span class="btn-text">{$t("Export Data")}</span></Button
 			>
 			<Button
 				outlined
@@ -122,7 +123,7 @@
 					name="download"
 					size="1.1em"
 				/>
-				<span class="btn-text">Import Data</span></Button
+				<span class="btn-text">{$t("Import Data")}</span></Button
 			>
 		</div>
 	</header>
@@ -171,7 +172,7 @@
 				><Icon
 					name="x"
 					size="1.1em"
-				/><span class="btn-text">Delete All Playlists</span></button
+				/><span class="btn-text">{$t("Delete All Playlists")}</span></button
 			></Grid
 		>
 	</section>

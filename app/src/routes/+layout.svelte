@@ -1,4 +1,5 @@
 <script lang="ts">
+	import "$lib/i18n";
     import Nav from "$components/Nav/Nav.svelte";
     import Alert from "$lib/components/Alert/Alert.svelte";
     import Player from "$lib/components/Player/Player.svelte";

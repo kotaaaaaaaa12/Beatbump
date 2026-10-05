@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { AudioPlayer } from "$lib/player";
 	import { format } from "$lib/utils";
 	import { createEventDispatcher } from "svelte";
@@ -36,7 +37,7 @@
 			<input
 				class="seek-control"
 				type="range"
-				aria-label="Seek playback"
+				aria-label={$t("Seek playback")}
 				aria-valuetext="{format(position)} of {format(duration)}"
 				min="0"
 				max={duration || 1}

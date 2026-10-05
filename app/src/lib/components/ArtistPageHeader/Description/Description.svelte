@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { createEventDispatcher, onMount } from "svelte";
 
 	export let description = "";
@@ -41,7 +42,7 @@
 			dispatch("update", (isExpanded = !isExpanded));
 		}}
 	>
-		<span class="btn-text">{isExpanded ? "Show Less" : "Show More"}</span>
+		<span class="btn-text">{$t(isExpanded ? "Show Less" : "Show More")}</span>
 	</div>
 </div>
 

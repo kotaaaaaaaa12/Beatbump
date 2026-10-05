@@ -68,7 +68,7 @@
 		addToQueue: (ctx: BuildMenuParams) => {
 			const { item } = ctx;
 			list.setTrackWillPlayNext(item, list.$.value.mix.length);
-			notify(`${item.title} has been added to your queue!`, "success");
+			notify(`${item.title} added to queue!`, "success");
 		},
 		playNext: (ctx: BuildMenuParams) => {
 			const { item } = ctx;

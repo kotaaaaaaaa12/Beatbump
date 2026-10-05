@@ -6,6 +6,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { draggable } from "$lib/actions/draggable";
 	import list, { currentTrack } from "$lib/stores/list";
 	import { tick } from "svelte";
@@ -253,7 +254,7 @@
 								: $list.mix[$list.position].artistInfo.artist[0].text}
 						</span>
 						<span class="length">
-							<span class="subheading">Now playing</span>
+							<span class="subheading">{$t("Now playing")}</span>
 						</span>
 					</div>
 				</section>
@@ -332,7 +333,7 @@
 								color="#f2f2f2"
 								size="1.5em"
 							/>
-							<span class="text">{item?.text}</span>
+							<span class="text">{$t(item?.text)}</span>
 						</li>
 					{/each}
 				</ul>

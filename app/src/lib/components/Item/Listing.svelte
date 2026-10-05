@@ -17,6 +17,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Loading from "$components/Loading/Loading.svelte";
 	import { createEventDispatcher, hasContext, tick } from "svelte";
 
@@ -349,7 +350,7 @@
 				{/if}
 				<div class="thumbnail">
 					<img
-						alt="thumbnail"
+						alt={$t("thumbnail")}
 						width={srcImg.width}
 						height={srcImg.height}
 						src={srcImg.url}
@@ -365,7 +366,7 @@
 							fill="hsla(0, 0%, 95%, 0.7)"
 							size="12px"
 						>
-							<span class="sr-only">Explicit</span>
+							<span class="sr-only">{$t("Explicit")}</span>
 						</Icon>
 					{/if}
 				</p>

@@ -14,6 +14,7 @@
 	lang="ts"
 	generics="T extends (Subtitle | AltSubtitle)[]"
 >
+	import { t, metadata } from "$lib/i18n";
 	import Icon from "$components/Icon/Icon.svelte";
 	import type { Dropdown, Icons } from "$lib/configs/dropdowns.config";
 	import { releasePageContext } from "$lib/contexts";
@@ -107,7 +108,7 @@
 			style="
 
 --img-height: 512;"
-			alt="album"
+			alt={$t("album")}
 		/>
 	</div>
 	<div class="metadata">
@@ -130,12 +131,12 @@
 				<span class="secondary subtitle-group">
 					<p class="secondary subtitle">
 						{Array.isArray(subtitles) && subtitles.length !== 0
-							? subtitles.join(" ")
+							? $metadata(subtitles.join(" "))
 							: ""}
 					</p>
 					<em
 						><small class="subtitle">
-							{Array.isArray(secondSubtitle) && secondSubtitle.join(" ")}
+							{Array.isArray(secondSubtitle) && $metadata(secondSubtitle.join(" "))}
 						</small>
 					</em>
 				</span>
@@ -165,10 +166,10 @@
 						style="margin-right: 0.1em; stroke-width: 4;font-weight: 800;"
 						size="1em"
 					>
-						<span class="sr-only">Explicit</span>
+						<span class="sr-only">{$t("Explicit")}</span>
 					</Icon>
 					{#if "type" in subtitles[0] && "tracks" in subtitles[0] && "year" in subtitles[0]}
-						{subtitles[0].type} • {subtitles[0].tracks} • {subtitles[0].year}
+						{$metadata(subtitles[0].type)} • {$metadata(subtitles[0].tracks)} • {subtitles[0].year}
 					{/if}
 				</small>
 			</p>
@@ -185,7 +186,7 @@
 					outlined={i === buttons.length - 1 || type === "outlined"}
 					icon={typeof icon === "string"
 						? { name: icon }
-						: { name: icon?.name, size: icon?.size }}>{text}</Button
+						: { name: icon?.name, size: icon?.size }}>{$t(text)}</Button
 				>
 			{/if}
 		{/each}

@@ -4,6 +4,7 @@
 />
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { groupSession, isPagePlaying } from "$lib/stores";
 	import { page as SPage } from "$app/stores";
 	import type { Item } from "$lib/types";
@@ -239,7 +240,7 @@
 					src={item.thumbnails?.[0]?.url}
 					width={item.thumbnails?.[0]?.width}
 					height={item.thumbnails?.[0]?.height}
-					alt="thumbnail"
+					alt={$t("thumbnail")}
 				/>
 			</div>
 		{/if}

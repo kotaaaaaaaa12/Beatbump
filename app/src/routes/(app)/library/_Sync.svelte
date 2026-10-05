@@ -14,6 +14,7 @@
 </script>
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Icon from "$lib/components/Icon/Icon.svelte";
 	import { notify } from "$lib/utils";
 	import { setMultiplePlaylists } from "$lib/workers/db/db";
@@ -22,7 +23,7 @@
 	import { createEventDispatcher, onMount, tick } from "svelte";
 	import { fade } from "svelte/transition";
 
-	type PeerType = "Sender" | "Receiver";
+
 
 	let peer: Peer;
 
@@ -31,11 +32,11 @@
 	let copyText = "copy";
 	let completed = false;
 	let check: string;
-	let peerType: PeerType;
+
 	let stepCounter = 0;
 	let RTC;
 
-	$: peerType = check === "sending" ? "Sender" : "Receiver";
+
 	$: type = check === "sending" ? true : false;
 	$: connection = undefined;
 	const dataType = ["Playlists", "Favorites"];
@@ -209,26 +210,25 @@
 			{#if stepCounter === 0}
 				<div class="screen">
 					<div class="content">
-						<h1>Sync your data</h1>
-						<div class="subheading">Access your favorites on any device</div>
+						<h1>{$t("Sync your data")}</h1>
+						<div class="subheading">{$t("Access your favorites on any device")}</div>
 						<p>
-							Securely sync your data across your devices! <br /> To begin, open
-							this screen on another device. Whenever you are ready, hit 'Next Step'
+							{$t("Securely sync your data across your devices!")} <br /> {$t("To begin, open this screen on another device. Whenever you are ready, hit 'Next Step'")}
 						</p>
 					</div>
 				</div>
 				<div class="next">
 					<button
 						class="nextbtn"
-						on:click={nextStep}>Next Step</button
+						on:click={nextStep}>{$t("Next Step")}</button
 					>
 				</div>
 			{:else if stepCounter === 1}
 				<div class="screen">
 					<div class="content">
-						<h1>First things first...</h1>
+						<h1>{$t("First things first...")}</h1>
 						<div class="subheading">
-							Will this device be <em>sending</em> or <em>receiving</em> data?
+							{$t("Will this device be sending or receiving data?")}
 						</div>
 						<!-- <p>Follow these steps on both devices.</p> -->
 						<section class="container row justify">
@@ -244,7 +244,7 @@
 										><Icon
 											name="send"
 											size="2em"
-										/><span class="label">Sending</span></span
+										/><span class="label">{$t("Sending")}</span></span
 									>
 								</label>
 							</div>
@@ -260,7 +260,7 @@
 										><Icon
 											name="import"
 											size="2em"
-										/><span class="label">Receiving</span></span
+										/><span class="label">{$t("Receiving")}</span></span
 									>
 								</label>
 							</div>
@@ -270,16 +270,16 @@
 					{#if check === "sending"}
 						<div class="content">
 							<span class="subheading"
-								>What kind of data would you like to send?</span
+								>{$t("What kind of data would you like to send?")}</span
 							>
 							<div class="container">
 								{#each dataType as option}
 									<label>
-										{option}
+										{$t(option)}
 										<input
 											type="checkbox"
 											bind:group={kindOfData}
-											value={option}
+											value={$t(option)}
 											name="dataType"
 										/>
 									</label>
@@ -296,19 +296,19 @@
 							: check === undefined}
 						on:click={() => {
 							if (check !== undefined) nextStep();
-						}}>Next Step</button
+						}}>{$t("Next Step")}</button
 					>
 				</div>
 			{:else if stepCounter === 2}
 				<div class="screen">
 					<div class="content">
-						<h1>Generate Your ID</h1>
-						<div class="subheading">The temporary ID is needed for syncing</div>
+						<h1>{$t("Generate Your ID")}</h1>
+						<div class="subheading">{$t("The temporary ID is needed for syncing")}</div>
 						<hr />
 
 						<section class="container">
 							<div class="id">
-								<p>Your ID:</p>
+								<p>{$t("Your ID:")}</p>
 
 								<div class="id-cont">
 									<code>{id} </code>
@@ -323,7 +323,7 @@
 											}, 1500);
 										}}
 									>
-										{copyText}
+										{$t(copyText)}
 									</p>
 								</div>
 							</div>
@@ -333,7 +333,7 @@
 									if (!browser) return;
 
 									ID();
-								}}>Create ID</button
+								}}>{$t("Create ID")}</button
 							>
 						</section>
 					</div>
@@ -344,7 +344,7 @@
 						disabled={id === "unset"}
 						on:click={() => {
 							if (id !== "unset") nextStep();
-						}}>Next Step</button
+						}}>{$t("Next Step")}</button
 					>
 				</div>
 			{:else if stepCounter === 3}
@@ -352,25 +352,22 @@
 					{#if check === "sending"}
 						<div class="content">
 							<h1>
-								Get the {(peerType =
-									check !== "sending" ? "Sender" : "Receiver")}'s ID
+								{$t("Get the {role}'s ID", { role: $t(check !== "sending" ? "Sender" : "Receiver") })}
 							</h1>
-							<div class="subheading">Let's find the other device</div>
+							<div class="subheading">{$t("Let's find the other device")}</div>
 							<p
-								>After generating an ID for both devices, enter the other's ID
-								in the field below.</p
+								>{$t("After generating an ID for both devices, enter the other's ID in the field below.")}</p
 							>
 							<hr />
 							<div class="id">
-								<p>Your ID:</p>
+								<p>{$t("Your ID:")}</p>
 
 								<div class="id-cont">
 									<code>{id} </code>
 								</div>
 
 								<p>
-									{(peerType = check !== "sending" ? "Sender" : "Receiver")}'s
-									ID:
+									{$t("{role}'s ID:", { role: $t(check !== "sending" ? "Sender" : "Receiver") })}
 								</p>
 
 								<div class="id-cont">
@@ -380,7 +377,7 @@
 										}}
 										bind:value={peerID}
 										class="input"
-										placeholder={`${peerType}'s ID`}
+										placeholder={$t("{role}'s ID:", { role: $t(check !== "sending" ? "Sender" : "Receiver") })}
 										type="text"
 										autocapitalize="off"
 										autocomplete="off"
@@ -397,17 +394,16 @@
 								disabled={peerID.length < 1}
 								on:click={() => {
 									connect();
-								}}>Connect</button
+								}}>{$t("Connect")}</button
 							>
 						</div>
 					{:else}
 						<div class="content">
-							<h1>Ready to Receive Data</h1>
-							<span>Your ID: <div class="id-cont"><code>{id}</code></div></span>
-							<div class="subheading">Waiting for sender to connect.</div>
+							<h1>{$t("Ready to Receive Data")}</h1>
+							<span>{$t("Your ID:")} <div class="id-cont"><code>{id}</code></div></span>
+							<div class="subheading">{$t("Waiting for sender to connect.")}</div>
 							<p
-								>Once data transfer is completed, this popup window will close
-								automatically</p
+								>{$t("Once data transfer is completed, this popup window will close automatically")}</p
 							>
 						</div>
 					{/if}

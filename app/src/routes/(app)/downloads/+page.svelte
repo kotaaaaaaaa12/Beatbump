@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t, locale } from "$lib/i18n";
 	import Header from "$lib/components/Layouts/Header.svelte";
 	import Icon from "$lib/components/Icon/Icon.svelte";
 	import { onMount } from "svelte";
@@ -47,8 +48,8 @@
 	const playTrack = async (track: any) => {
 		if (track.Status === "completed") {
 			const localUrl = `/api/v1/stream/${track.GroupTaskID}/${track.VideoID}`;
-			const title = track.Title || track.title || "Unknown Title";
-			const artist = track.Artist || track.artist || "Unknown Artist";
+			const title = track.Title || track.title || $t("Unknown Title");
+			const artist = track.Artist || track.artist || $t("Unknown Artist");
 			const item: any = {
 				videoId: track.VideoID,
 				title: title,
@@ -106,8 +107,8 @@
 		// Convert all tracks to Item objects
 		const items = completedTracks.map((track) => {
 			const localUrl = `/api/v1/stream/${track.GroupTaskID}/${track.VideoID}`;
-			const title = track.Title || track.title || "Unknown Title";
-			const artist = track.Artist || track.artist || "Unknown Artist";
+			const title = track.Title || track.title || $t("Unknown Title");
+			const artist = track.Artist || track.artist || $t("Unknown Artist");
 			return {
 				videoId: track.VideoID,
 				title: title,
@@ -155,7 +156,7 @@
 	const deleteTask = async (taskId: number) => {
 		if (
 			!confirm(
-				"Are you sure you want to delete this download? This will delete all downloaded files.",
+				$t("Are you sure you want to delete this download? This will delete all downloaded files."),
 			)
 		)
 			return;
@@ -164,7 +165,7 @@
 	};
 
 	const deleteTrack = async (taskId: number, track: any) => {
-		if (!confirm(`Are you sure you want to delete "${track.Title}"?`)) return;
+		if (!confirm($t('Are you sure you want to delete "{title}"?', { title: track.Title }))) return;
 		await APIClient.del(`/api/v1/downloads/${taskId}/tracks/${track.VideoID}`);
 		// Refresh tracks
 		await fetchTaskTracks(taskId);
@@ -176,9 +177,9 @@
 </script>
 
 <Header
-	title="Downloads"
+	title={$t("Downloads")}
 	url="/downloads"
-	desc="View download status"
+	desc={$t("View download status")}
 />
 
 <main class="resp-content-width">
@@ -186,7 +187,7 @@
 		<button
 			on:click={fetchTasks}
 			class="icon-btn"
-			title="Refresh"
+			title={$t("Refresh")}
 		>
 			<Icon
 				name="refresh"
@@ -195,7 +196,7 @@
 		</button>
 	</div>
 	{#if tasks.length === 0}
-		<p>No downloads found.</p>
+		<p>{$t("No downloads found.")}</p>
 	{:else}
 		<div class="tasks">
 			{#each tasks as task}
@@ -208,25 +209,25 @@
 						<div class="task-header">
 							<div class="info">
 								<span class="title"
-									>{task.PlaylistName || "Unknown Playlist"}</span
+									>{task.PlaylistName || $t("Unknown Playlist")}</span
 								>
-								<span class="meta">ID: {task.ReferenceID}</span>
+								<span class="meta">{$t("ID:")} {task.ReferenceID}</span>
 								<span class="meta date"
-									>{new Date(task.CreatedAt).toLocaleString()}</span
+									>{new Date(task.CreatedAt).toLocaleString($locale)}</span
 								>
 							</div>
 
 							<div class="stats">
 								<div class="stat-item">
-									<span class="label">Total</span>
+									<span class="label">{$t("Total")}</span>
 									<span class="value">{task.TotalTracks}</span>
 								</div>
 								<div class="stat-item">
-									<span class="label">Done</span>
+									<span class="label">{$t("Done")}</span>
 									<span class="value success">{task.Processed}</span>
 								</div>
 								<div class="stat-item">
-									<span class="label">Failed</span>
+									<span class="label">{$t("Failed")}</span>
 									<span class="value error">{task.Failed}</span>
 								</div>
 							</div>
@@ -241,7 +242,7 @@
 									<button
 										class="icon-btn"
 										on:click={() => pauseTask(task.ID)}
-										title="Pause"
+										title={$t("Pause")}
 									>
 										<Icon
 											name="pause"
@@ -253,7 +254,7 @@
 									<button
 										class="icon-btn"
 										on:click={() => resumeTask(task.ID)}
-										title="Resume"
+										title={$t("Resume")}
 									>
 										<Icon
 											name="play"
@@ -265,7 +266,7 @@
 									<button
 										class="icon-btn"
 										on:click={() => retryTask(task.ID)}
-										title="Retry"
+										title={$t("Retry")}
 									>
 										<Icon
 											name="refresh"
@@ -276,7 +277,7 @@
 								<button
 									class="icon-btn delete"
 									on:click={() => deleteTask(task.ID)}
-									title="Delete"
+									title={$t("Delete")}
 								>
 									<Icon
 										name="trash"
@@ -289,7 +290,7 @@
 								<button
 									class="icon-btn"
 									on:click={() => playAllTracks(task.ID)}
-									title="Play All"
+									title={$t("Play All")}
 								>
 									<Icon
 										name="play"
@@ -304,7 +305,7 @@
 								class:processing={task.Status === "processing" ||
 									task.Status === "pending"}
 							>
-								{task.Status}
+								{$t(task.Status)}
 							</div>
 						</div>
 					</div>
@@ -313,7 +314,7 @@
 					{#if expandedTaskID === task.ID}
 						<div class="children">
 							{#if taskTracks.length === 0}
-								<p class="no-tracks">No tracks found or loading...</p>
+								<p class="no-tracks">{$t("No tracks found or loading...")}</p>
 							{:else}
 								{#each taskTracks as track}
 									<div class="child-task">
@@ -333,7 +334,7 @@
 												<button
 													class="icon-btn"
 													on:click={() => playTrack(track)}
-													title="Play"
+													title={$t("Play")}
 												>
 													<Icon
 														name="play-circle"
@@ -344,7 +345,7 @@
 											<button
 												class="icon-btn delete"
 												on:click={() => deleteTrack(task.ID, track)}
-												title="Delete"
+												title={$t("Delete")}
 											>
 												<Icon
 													name="trash"
@@ -359,7 +360,7 @@
 											class:processing={track.Status === "in_progress" ||
 												track.Status === "not_started"}
 										>
-											{track.Status}
+											{$t(track.Status)}
 										</div>
 									</div>
 								{/each}

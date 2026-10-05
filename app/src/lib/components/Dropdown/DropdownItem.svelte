@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import Icon from "../Icon/Icon.svelte";
 
 	export let text = "";
@@ -17,7 +18,7 @@
 		name={icon}
 		size="1.25em"
 	/>
-	<div class="dd-text">{text}</div>
+	<div class="dd-text">{$t(text)}</div>
 </div>
 
 <style lang="scss">

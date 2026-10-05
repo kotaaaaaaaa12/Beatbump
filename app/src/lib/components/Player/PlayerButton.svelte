@@ -1,6 +1,7 @@
 <svelte:options immutable={true} />
 
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { AudioPlayer } from "$lib/player";
 	import { playerLoading } from "$lib/stores";
 	import { queue } from "$lib/stores/list";
@@ -24,7 +25,7 @@
 <button
 	type="button"
 	class="player-btn player-title"
-	aria-label={$playerLoading || $audioLoading ? "Cancel loading" : isPaused ? "Play" : "Pause"}
+	aria-label={$t($playerLoading || $audioLoading ? "Cancel loading" : isPaused ? "Play" : "Pause")}
 	aria-busy={$playerLoading || $audioLoading}
 	on:click|capture|stopPropagation={handleButtonPress}
 >

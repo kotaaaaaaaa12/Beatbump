@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import Carousel from "$components/Carousel/Carousel.svelte";
 	import Header from "$lib/components/Layouts/Header.svelte";
@@ -10,9 +11,9 @@
 </script>
 
 <Header
-	title="Trending"
+	title={$t("Trending")}
 	url={path}
-	desc="The latest trending songs and releases"
+	desc={$t("The latest trending songs and releases")}
 />
 <main data-testid="trending">
 	{#each carousels as carousel (carousel)}
@@ -27,10 +28,10 @@
 		{:else if carousel.categories}
 			<div class="breakout">
 				<div class="header">
-					<span class="h2">{carousel.header.title}</span>
+					<span class="h2">{$t(carousel.header.title)}</span>
 					<a
 						class="link"
-						href="/explore"><small>See All</small></a
+						href="/explore"><small>{$t("See All")}</small></a
 					>
 				</div>
 				<div class="box">
@@ -39,7 +40,7 @@
 							<a
 								style="--color: {item?.color}"
 								class="item-box"
-								href="/explore/{item?.endpoint?.params}">{item?.text}</a
+								href="/explore/{item?.endpoint?.params}">{$t(item?.text)}</a
 							>
 						{/each}
 					</div>

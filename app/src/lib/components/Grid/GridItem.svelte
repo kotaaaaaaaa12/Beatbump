@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import lazy from "$lib/lazy";
 	import list from "$lib/stores/list";
@@ -33,7 +34,7 @@
 			decoding="async"
 			use:lazy={{ src: item.thumbnails && item.thumbnails[0].url }}
 			src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHN0eWxlPSJpc29sYXRpb246aXNvbGF0ZSIgdmlld0JveD0iMCAwIDI1NiAyNTYiIHdpZHRoPSIyNTZwdCIgaGVpZ2h0PSIyNTZwdCI+PGRlZnM+PGNsaXBQYXRoIGlkPSJwcmVmaXhfX2EiPjxwYXRoIGQ9Ik0wIDBoMjU2djI1NkgweiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNwcmVmaXhfX2EpIj48cGF0aCBmaWxsPSJub25lIiBkPSJNMCAwaDI1NnYyNTZIMHoiLz48cGF0aCBmaWxsPSIjOEE4QThBIiBmaWxsLW9wYWNpdHk9Ii40OSIgZD0iTTAgMGgyNTZ2MjU2SDB6Ii8+PC9nPjwvc3ZnPg=="
-			alt="thumbnail"
+			alt={$t("thumbnail")}
 		/>
 	</div>
 	<div class="item-title">{item.title}</div>

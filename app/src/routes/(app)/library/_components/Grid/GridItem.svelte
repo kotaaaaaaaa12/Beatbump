@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	export let item;
 </script>
 
@@ -12,7 +13,7 @@
 			height={"200"}
 			loading="lazy"
 			src={item.thumbnail}
-			alt="thumbnail"
+			alt={$t("thumbnail")}
 		/>
 	</div>
 	<div class="item-text">
@@ -20,11 +21,7 @@
 		<div class="item-description">
 			{@html item?.description ? item.description + ` &bull; ` : ""}
 			{#if item.items !== undefined}
-				{item?.items?.length === 1
-					? `1 Song`
-					: item?.items?.length === 0
-					? "No tracks"
-					: `${item?.items?.length} Songs`}
+				{$t(item.items.length === 0 ? "No tracks" : item.items.length === 1 ? "{count} song" : "{count} songs", { count: item.items.length })}
 			{/if}
 		</div>
 	</div>

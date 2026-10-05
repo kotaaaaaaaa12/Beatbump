@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import { AudioPlayer } from "$lib/player";
 	import SessionListService, {
 		queue,
@@ -66,6 +67,7 @@
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
 			class="player-btn"
+			title={$t("Shuffle")}
 			on:click|stopPropagation|capture={handleShuffle}
 		>
 			<Icon
@@ -83,7 +85,8 @@
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<div
 				class="player-btn"
-				on:click|stopPropagation|capture={prevBtn}
+				title={$t("Previous track")}
+			on:click|stopPropagation|capture={prevBtn}
 			>
 				<Icon
 					color="white"
@@ -97,6 +100,7 @@
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<div
 				class="player-btn player-title"
+				title={$t(isPaused ? "Play" : "Pause")}
 				on:click|stopPropagation|capture={(e) => {
 					if (!$SessionListService.mix) return;
 					if (isPaused) {
@@ -133,7 +137,8 @@
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<div
 				class="player-btn"
-				on:click|stopPropagation|capture={nextBtn}
+				title={$t("Next track")}
+			on:click|stopPropagation|capture={nextBtn}
 			>
 				<Icon
 					color="white"
@@ -148,6 +153,7 @@
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
 			class="player-btn"
+			title={$t("Repeat")}
 			on:click|stopPropagation|capture={handleRepeat}
 		>
 			<Icon

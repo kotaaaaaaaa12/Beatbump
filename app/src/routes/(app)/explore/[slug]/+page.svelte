@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import CarouselItem from "$components/Carousel/CarouselItem.svelte";
 	import Carousel from "$lib/components/Carousel/Carousel.svelte";
 	import { Grid } from "$lib/components/Grid";
@@ -8,13 +9,13 @@
 </script>
 
 <Header
-	title="{data.response.header} Playlists"
+	title={$t("{category} Playlists", { category: $t(data.response.header) })}
 	url={data.path}
-	desc="Find the perfect playlist that'll match your mood, or fit any occasion."
+	desc={$t("Find the perfect playlist that'll match your mood, or fit any occasion.")}
 />
 <main>
 	<div class="header">
-		<h1>{data.response.header}</h1>
+		<h1>{$t(data.response.header)}</h1>
 	</div>
 	{#each data.response.carousels as item}
 			<!-- {@debug section} -->

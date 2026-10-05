@@ -5,11 +5,15 @@
 </script>
 
 <script lang="ts">
+	import { t, languagePreference, setLanguage, type LanguagePreference, errorMessage } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import Header from "$components/Layouts/Header.svelte";
 	import { APIClient } from "$lib/api";
 	import { AudioPlayer, playbackTiming } from "$lib/player";
 	import { settings, type Theme } from "$stores/settings";
+	function changeLanguage(event: Event) {
+		setLanguage((event.currentTarget as HTMLSelectElement).value as LanguagePreference);
+	}
 	const themes: Theme[] = ["Dark", "Dim", "Midnight", "YTM"];
 	let diagnosticsMessage = "";
 	const milliseconds = (value: number | undefined) => value === undefined ? "Pending" : `${value} ms`;
@@ -63,36 +67,49 @@
 </script>
 
 <Header
-	title="Settings"
+	title={$t("Settings")}
 	url="/settings"
-	desc="Configure your app settings"
+	desc={$t("Configure your app settings")}
 />
 {#if browser}
 	<main class="resp-content-width">
+        <section>
+            <span class="h5">{$t("Language")}</span>
+            <div class="setting">
+                <label for="language">{$t("Language")}<span>{$t("Follow your browser language. Japanese is used for Japanese browsers; English for all others.")}</span></label>
+                <div class="select">
+                    <select id="language" name="language" value={$languagePreference} on:change={changeLanguage}>
+                        <option value="auto">{$t("Auto")}</option>
+                        <option value="ja" lang="ja">日本語</option>
+                        <option value="en" lang="en">English</option>
+                    </select>
+                </div>
+            </div>
+        </section>
 		<section class="playback-diagnostics">
 			<details>
-				<summary>Playback diagnostics</summary>
+				<summary>{$t("Playback diagnostics")}</summary>
 				{#if $playbackTiming}
 					<dl>
-						<dt>Status</dt><dd>{$playbackTiming.phase}</dd>
-						<dt>Playback URL</dt><dd>{milliseconds($playbackTiming.metadataMs)}</dd>
-						<dt>Queue</dt><dd>{$playbackTiming.queueMs === undefined ? "Not requested" : milliseconds($playbackTiming.queueMs)}</dd>
-						<dt>Audio start</dt><dd>{milliseconds($playbackTiming.audioStartMs)}</dd>
-						<dt>Total</dt><dd>{milliseconds($playbackTiming.totalMs)}</dd>
+						<dt>{$t("Status")}</dt><dd>{$t($playbackTiming.phase)}</dd>
+						<dt>{$t("Playback URL")}</dt><dd>{$t(milliseconds($playbackTiming.metadataMs))}</dd>
+						<dt>{$t("Queue")}</dt><dd>{$playbackTiming.queueMs === undefined ? $t("Not requested") : $t(milliseconds($playbackTiming.queueMs))}</dd>
+						<dt>{$t("Audio start")}</dt><dd>{$t(milliseconds($playbackTiming.audioStartMs))}</dd>
+						<dt>{$t("Total")}</dt><dd>{$t(milliseconds($playbackTiming.totalMs))}</dd>
 					</dl>
-					<p>Queue and URL requests may overlap. Audio start measures the time from assigning the URL to playback beginning.</p>
-					<button class="link" on:click={copyPlaybackDiagnostics}>Copy playback diagnostics</button>
-					<p role="status">{diagnosticsMessage}</p>
+					<p>{$t("Queue and URL requests may overlap. Audio start measures the time from assigning the URL to playback beginning.")}</p>
+					<button class="link" on:click={copyPlaybackDiagnostics}>{$t("Copy playback diagnostics")}</button>
+					<p role="status">{$t(diagnosticsMessage)}</p>
 					<pre>{JSON.stringify($playbackTiming, null, 2)}</pre>
 				{:else}
-					<p>Play a track to record startup timings.</p>
+					<p>{$t("Play a track to record startup timings.")}</p>
 				{/if}
 			</details>
 		</section>
 		<section>
-			<span class="h5">Appearance</span>
+			<span class="h5">{$t("Appearance")}</span>
 			<div class="setting">
-				<label for="theme">Theme </label>
+				<label for="theme">{$t("Theme")} </label>
 				<div class="select">
 					<select
 						name="theme"
@@ -103,14 +120,14 @@
 							<option
 								value={theme}
 								selected={$settings["appearance"]["Theme"] === theme}
-								>{theme}</option
+								>{$t(theme)}</option
 							>
 						{/each}
 					</select>
 				</div>
 			</div>
 			<div class="setting">
-				<label>Immersive Queue</label>
+				<label>{$t("Immersive Queue")}</label>
 				<input
 					type="checkbox"
 					name="immersive-queue"
@@ -124,9 +141,9 @@
 			</div>
 		</section>
 		<section>
-			<span class="h5">Playback</span>
+			<span class="h5">{$t("Playback")}</span>
 			<div class="setting">
-				<label>Dedupe Automix</label>
+				<label>{$t("Dedupe Automix")}</label>
 
 				<input
 					name="dedupe"
@@ -194,8 +211,8 @@
 			
 			<div class="setting">
 				<label for="downloadPath">
-					Download Path
-					<span class=""> Folder where playlists will be downloaded. </span>
+					{$t("Download Path")}
+					<span class=""> {$t("Folder where playlists will be downloaded.")} </span>
 				</label>
 				<div class="input-container">
 					<div class="input no-btn mb-1">
@@ -210,7 +227,7 @@
 								});
 								if (!res.ok) {
 									const data = await res.json();
-									alert(data.error || "Failed to update download path");
+									alert(errorMessage(data.error || "Failed to update download path"));
 								}
 							}}
 						/>
@@ -219,8 +236,8 @@
 			</div>
 			<div class="setting">
 				<label
-					>Ongoing Listening Download
-					<span class="">Automatically download songs you listen to.</span>
+					>{$t("Ongoing Listening Download")}
+					<span class="">{$t("Automatically download songs you listen to.")}</span>
 				</label>
 				<input
 					type="checkbox"
@@ -232,7 +249,7 @@
 						});
 						if (!res.ok) {
 							const data = await res.json();
-							alert(data.error || "Failed to update setting");
+							alert(errorMessage(data.error || "Failed to update setting"));
 							e.currentTarget.checked = !checked; // Revert
 						}
 					}}
@@ -245,9 +262,9 @@
 			<div class="setting">
 				<!-- svelte-ignore a11y-label-has-associated-control -->
 				<label
-					>Playback Updates URL
+					>{$t("Playback Updates URL")}
 					<span class=""
-						>Playing a song updates the URL with the song's sharing URL.</span
+						>{$t("Playing a song updates the URL with the song's sharing URL.")}</span
 					>
 				</label>
 				<input

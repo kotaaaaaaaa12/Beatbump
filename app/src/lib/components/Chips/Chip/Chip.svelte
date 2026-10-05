@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	export let chip: {
 		text: string;
 		browseEndpoint: { browseId: string; params: string };
@@ -16,7 +17,7 @@
 		: "/home"}
 	on:click
 >
-	{chip.text}
+	{$t(chip.text)}
 </a>
 
 <style
