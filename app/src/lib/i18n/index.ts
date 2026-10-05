@@ -44,8 +44,18 @@ export function translateFor(language: Locale, message: string, params: Paramete
 export const t = derived(locale, language => (message: string | undefined, params: Parameters = {}) => translateFor(language, message ?? "", params));
 // Upstream section labels vary in capitalization and whitespace. Keep this
 // normalization confined to headings so song and artist titles stay untouched.
-const normalizeHeading = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+const normalizeHeading = (value: string) => value.trim().replace(/\s+/g, " ").replace(/[’‘]/g, "'").replace(/&/g, "and").replace(/[.!?:]+$/, "").toLowerCase();
 const headingKeys = new Map(Object.keys(en).map(key => [normalizeHeading(key), key]));
+// Compose only known structural labels, rather than translating arbitrary titles.
+const headingCollections: Record<string, string> = {
+	playlists: "Playlists", albums: "Albums", artists: "Artists", songs: "Songs", tracks: "Songs",
+	videos: "Videos", "music videos": "Music Videos", mixes: "Mixes", singles: "Singles", releases: "Releases",
+};
+const headingModifiers: Record<string, string> = {
+	featured: "Featured {collection}", trending: "Trending {collection}", popular: "Popular {collection}",
+	recommended: "Recommended {collection}", new: "New {collection}", top: "Top {collection}",
+	"recently added": "Recently added {collection}", "recently played": "Recently played {collection}",
+};
 const personalizedHeadings: readonly [RegExp, string][] = [
 	[/^featuring (.+)$/i, "Featuring {artist}"],
 	[/^similar to (.+)$/i, "Similar to {artist}"],
@@ -63,6 +73,13 @@ export function translateSectionHeadingFor(language: Locale, value: string | und
 	const text = original.trim().replace(/\s+/g, " ");
 	const key = headingKeys.get(normalizeHeading(text));
 	if (key) return translateFor(language, key);
+	const collection = /^(featured|trending|popular|recommended|new|top|recently added|recently played) (community |featured )?(playlists|albums|artists|songs|tracks|music videos|videos|mixes|singles|releases)( for you)?$/.exec(normalizeHeading(text));
+	if (collection) {
+		const [, modifier, qualifier, kind, personalized] = collection;
+		const base = qualifier ? translateFor(language, `${qualifier.trim()[0].toUpperCase()}${qualifier.trim().slice(1)} ${headingCollections[kind]}`) : translateFor(language, headingCollections[kind]);
+		const heading = translateFor(language, headingModifiers[modifier], { collection: base });
+		return personalized ? translateFor(language, "For you: {heading}", { heading }) : heading;
+	}
 	for (const [pattern, message] of personalizedHeadings) {
 		const match = pattern.exec(text);
 		if (match) return translateFor(language, message, { artist: match[1] });
@@ -75,11 +92,18 @@ export const sectionHeading = derived(locale, language => (value: string | undef
 export function translateMetadataFor(language: Locale, value: unknown): string {
 	const text = String(value ?? "");
 	if (language === "en") return text;
-	const units: Record<string, string> = { song: "songs", track: "tracks", view: "views", subscriber: "subscribers", play: "plays", hour: "hours", minute: "minutes", min: "minutes", second: "seconds", sec: "seconds" };
-	return text.split(/(\s*[•·]\s*)/).map(part => translateFor(language, part)).join("").replace(/([\d,.]+[KMB]?)\s+(songs?|tracks?|views?|subscribers?|plays?|hours?|minutes?|mins?|seconds?|secs?)\b/gi, (_, count: string, unit: string) => {
-		const singular = unit.toLowerCase().replace(/s$/, "");
-		return translateFor(language, "{count} " + units[singular], { count });
-	});
+	const kinds: Record<string, string> = { song: "Song", album: "Album", single: "Single", ep: "EP", playlist: "Playlist", video: "Video", "music video": "Music video" };
+	const units: Record<string, string> = { song: "songs", track: "tracks", view: "views", subscriber: "subscribers", play: "plays", hour: "hours", hr: "hours", minute: "minutes", min: "minutes", second: "seconds", sec: "seconds", playlist: "playlists", listener: "listeners", like: "likes", album: "albums", artist: "artists", video: "videos", year: "years", month: "months", week: "weeks", day: "days" };
+	return text.split(/(\s*[•·]\s*)/).map(part => {
+		const trimmed = part.trim();
+		const kind = Object.prototype.hasOwnProperty.call(kinds, trimmed.toLowerCase()) ? kinds[trimmed.toLowerCase()] : undefined;
+		if (kind) return part.replace(trimmed, translateFor(language, kind));
+		const count = /^([\d,.]+[KMB]?)\s+(monthly listeners?|songs?|tracks?|views?|subscribers?|plays?|hours?|hrs?|minutes?|mins?|seconds?|secs?|playlists?|listeners?|likes?|albums?|artists?|videos?|years?|months?|weeks?|days?)( ago)?$/i.exec(trimmed);
+		if (!count) return part;
+		const singular = count[2].toLowerCase().replace(/s$/, "");
+		const unit = singular === "monthly listener" ? "monthly listeners" : units[singular];
+		return part.replace(trimmed, translateFor(language, `{count} ${unit}${count[3] ? " ago" : ""}`, { count: count[1] }));
+	}).join("");
 }
 // Only structural metadata uses this formatter; song/artist names never do.
 export const metadata = derived(locale, language => (value: unknown) => translateMetadataFor(language, value));

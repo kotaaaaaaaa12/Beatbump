@@ -8,6 +8,7 @@
 	lang="ts"
 >
     import {APIClient} from "$lib/api";
+	import { translate } from "$lib/i18n";
 
 	type StoreSubscriptions = {
 		$startIndex?: number;
@@ -277,7 +278,7 @@
 				if (item.endpoint?.pageType?.includes("MUSIC_PAGE_TYPE_ARTIST")) {
 					shareData = {
 						title: item.title,
-						text: `${item.title} on Beatbump`,
+						text: translate("{title} on Beatbump", { title: item.title }),
 						url: `${SITE_ORIGIN_URL}/artist/${item.endpoint?.browseId}`,
 					};
 				}
@@ -297,7 +298,7 @@
 </script>
 
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, metadata } from "$lib/i18n";
 	import { page as PageStore } from "$app/stores";
 	import {
 		isMobileMQ,
@@ -535,7 +536,7 @@
 								>
 							{/if}
 						{:else}
-							<span>{subtitle.text} </span>
+							<span>{$metadata(subtitle.text)} </span>
 						{/if}
 					{/each}
 				{/if}

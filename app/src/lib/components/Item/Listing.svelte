@@ -17,7 +17,7 @@
 </script>
 
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, translate, metadata } from "$lib/i18n";
 	import Loading from "$components/Loading/Loading.svelte";
 	import { createEventDispatcher, hasContext, tick } from "svelte";
 
@@ -150,7 +150,7 @@
 					action: async () => {
 						if (!browser) return;
 						const shareData = {
-							title: `Join ${groupSession.client.displayName}'s Group Session on Beatbump!`,
+							title: translate("Join {name}'s Group Session on Beatbump!", { name: groupSession.client.displayName }),
 
 							url: `${$SITE_ORIGIN_URL}/session?token=${IsoBase64.toBase64(
 								JSON.stringify({
@@ -373,7 +373,7 @@
 				{#if isArtist}
 					<p class="artist-stats">
 						{#each data.subtitle as subtitle}
-							{subtitle.text}
+							{$metadata(subtitle.text)}
 						{/each}
 					</p>
 				{:else if data.type === "playlist"}

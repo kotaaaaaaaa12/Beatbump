@@ -5,6 +5,7 @@
 	lang="ts"
 >
 	import { APIClient } from "$lib/api";
+	import { translate } from "$lib/i18n";
 
 	const RE_ALBUM_PLAYLIST_SINGLE = /PLAYLIST|ALBUM|SINGLE/;
 	const RE_THUMBNAIL_DIM = /=w\d+-h\d+-/gm;
@@ -80,7 +81,7 @@
 			if (!browser) return;
 			const { SITE_ORIGIN_URL } = ctx;
 			const shareData = {
-				title: `Join ${groupSession.client.displayName}'s Beatbump Session`,
+				title: translate("Join {name}'s Beatbump Session", { name: groupSession.client.displayName }),
 
 				url: `${SITE_ORIGIN_URL}/session?token=${IsoBase64.toBase64(
 					JSON.stringify({
@@ -173,6 +174,7 @@
 </script>
 
 <script lang="ts">
+	import { metadata } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import Loading from "$components/Loading/Loading.svelte";
 	// import { groupSession } from "$lib/stores";
@@ -377,7 +379,7 @@
 			<div class="subtitles secondary">
 				{#each item.subtitle as sub}
 					{#if !sub?.browseId}
-						<span>{sub.text}</span>
+						<span>{$metadata(sub.text)}</span>
 					{:else}
 						<a
 							on:click|stopPropagation|preventDefault={() => {

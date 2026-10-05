@@ -4,7 +4,7 @@
 />
 
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, translate, metadata } from "$lib/i18n";
 	import { groupSession, isPagePlaying } from "$lib/stores";
 	import { page as SPage } from "$app/stores";
 	import type { Item } from "$lib/types";
@@ -108,7 +108,7 @@
 				if (item.endpoint?.pageType?.includes("MUSIC_PAGE_TYPE_ARTIST")) {
 					shareData = {
 						title: item.title,
-						text: `${item.title} on Beatbump`,
+						text: translate("{title} on Beatbump", { title: item.title }),
 						url: `${$SITE_ORIGIN_URL}/artist/${item.endpoint?.browseId}`,
 					};
 				}
@@ -266,7 +266,7 @@
 								}}>{subtitle.text}</a
 							>
 						{:else}
-							<span>{subtitle.text} </span>
+							<span>{$metadata(subtitle.text)} </span>
 						{/if}
 					{/each}
 				{/if}

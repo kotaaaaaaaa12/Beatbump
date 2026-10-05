@@ -279,7 +279,7 @@
 										<input
 											type="checkbox"
 											bind:group={kindOfData}
-											value={$t(option)}
+											value={option}
 											name="dataType"
 										/>
 									</label>

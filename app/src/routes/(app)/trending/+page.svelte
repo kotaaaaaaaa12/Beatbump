@@ -40,7 +40,7 @@
 							<a
 								style="--color: {item?.color}"
 								class="item-box"
-								href="/explore/{item?.endpoint?.params}">{$t(item?.text)}</a
+								href="/explore/{item?.endpoint?.params}">{$sectionHeading(item?.text)}</a
 							>
 						{/each}
 					</div>

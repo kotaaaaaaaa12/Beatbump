@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, sectionHeading } from "$lib/i18n";
 	import type { Sections } from "$lib/types/components/sections";
     import type { PageData } from "./$types";
 
@@ -17,7 +17,7 @@
 </script>
 
 <Header
-	title={$t(title ? title.replace(",", " ") : "")}
+	title={$sectionHeading(title ? title.replace(",", " ") : "")}
 	url={$page.url.pathname}
 	desc={$t("The latest in music")}
 />
@@ -25,12 +25,12 @@
 <main>
 	{#if title === "Charts"}
 		<div class="header">
-			<span class="h1">{$t(header)}</span>
+			<span class="h1">{$sectionHeading(header)}</span>
 		</div>
 	{/if}
 	{#each sections as section}
 			<Grid
-				heading={$t(header)}
+				heading={$sectionHeading(header)}
 				items={section.items}
 
 

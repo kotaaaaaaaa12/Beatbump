@@ -42,7 +42,7 @@
                     ? async () => {
                         if (!browser) return;
                         const shareData = {
-                            title: `Join ${groupSession.client.displayName}'s Beatbump Session`,
+                            title: translate("Join {name}'s Beatbump Session", { name: groupSession.client.displayName }),
 
                             url: `${$SITE_ORIGIN_URL}/session?token=${IsoBase64.toBase64(
                                 JSON.stringify({
@@ -79,7 +79,7 @@
 </script>
 
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, translate } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import { goto } from "$app/navigation";
 	import Icon from "$components/Icon/Icon.svelte";
@@ -174,7 +174,7 @@
 				height="64"
 				on:error|capture={handleImageError}
 				src={$currentTrack?.thumbnails?.[0]?.url ?? IMAGE_NOT_FOUND}
-				alt="{$currentTrack?.title} thumbnail image"
+				alt={$t("Thumbnail for {title}", { title: $currentTrack?.title ?? "" })}
 			/>
 			<div
 				class="container"

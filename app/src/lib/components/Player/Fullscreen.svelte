@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, sectionHeading } from "$lib/i18n";
 	import { navigating } from "$app/stores";
 	import Description from "$components/ArtistPageHeader/Description/Description.svelte";
 	import Carousel from "$components/Carousel/Carousel.svelte";
@@ -609,7 +609,7 @@
 							<div class="pad">
 								{#if $related.description.description}
 									<div class="mb-2">
-										<span class="h2">{$t($related?.description?.header)}</span>
+										<span class="h2">{$sectionHeading($related?.description?.header)}</span>
 										<Description
 											description={$related.description.description}
 										/>

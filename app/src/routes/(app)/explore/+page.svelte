@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, sectionHeading } from "$lib/i18n";
 	import { Grid } from "$lib/components/Grid";
 	import Header from "$lib/components/Layouts/Header.svelte";
 	import type { PageData } from "./$types";
@@ -29,7 +29,7 @@
 				class="box"
 				href={`/explore/${item.endpoint.params}`}
 			>
-				{$t(item.text)}
+				{$sectionHeading(item.text)}
 			</a>
 		</Grid>
 	{/each}

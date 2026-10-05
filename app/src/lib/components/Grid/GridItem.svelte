@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, metadata } from "$lib/i18n";
 	import { goto } from "$app/navigation";
 	import lazy from "$lib/lazy";
 	import list from "$lib/stores/list";
@@ -42,7 +42,7 @@
 		<span class="subtitles secondary">
 			{#each item.subtitle as sub}
 				{#if !sub?.browseId}
-					<span>{sub.text}</span>
+					<span>{$metadata(sub.text)}</span>
 				{:else}
 					<a
 						on:click|stopPropagation|preventDefault={() => {

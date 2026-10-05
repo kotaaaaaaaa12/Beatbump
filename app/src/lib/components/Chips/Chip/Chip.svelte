@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { sectionHeading } from "$lib/i18n";
 	export let chip: {
 		text: string;
 		browseEndpoint: { browseId: string; params: string };
@@ -17,7 +17,7 @@
 		: "/home"}
 	on:click
 >
-	{$t(chip.text)}
+	{$sectionHeading(chip.text)}
 </a>
 
 <style
