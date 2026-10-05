@@ -9,7 +9,7 @@
 	import { browser } from "$app/environment";
 	import Header from "$components/Layouts/Header.svelte";
 	import { APIClient } from "$lib/api";
-	import { AudioPlayer, playbackTiming } from "$lib/player";
+	import { AudioPlayer, playbackTiming, getPlaybackDiagnostics } from "$lib/player";
 	import { settings, type Theme } from "$stores/settings";
 	function changeLanguage(event: Event) {
 		setLanguage((event.currentTarget as HTMLSelectElement).value as LanguagePreference);
@@ -20,7 +20,7 @@
 	async function copyPlaybackDiagnostics() {
 		if (!$playbackTiming) return;
 		try {
-			await navigator.clipboard.writeText(JSON.stringify($playbackTiming, null, 2));
+			await navigator.clipboard.writeText(JSON.stringify(getPlaybackDiagnostics($playbackTiming), null, 2));
 			diagnosticsMessage = "Playback diagnostics copied.";
 		} catch {
 			diagnosticsMessage = "Copy is unavailable. Select the report below to copy it.";
@@ -100,7 +100,7 @@
 					<p>{$t("Queue and URL requests may overlap. Audio start measures the time from assigning the URL to playback beginning.")}</p>
 					<button class="link" on:click={copyPlaybackDiagnostics}>{$t("Copy playback diagnostics")}</button>
 					<p role="status">{$t(diagnosticsMessage)}</p>
-					<pre>{JSON.stringify($playbackTiming, null, 2)}</pre>
+					<pre>{JSON.stringify(getPlaybackDiagnostics($playbackTiming), null, 2)}</pre>
 				{:else}
 					<p>{$t("Play a track to record startup timings.")}</p>
 				{/if}

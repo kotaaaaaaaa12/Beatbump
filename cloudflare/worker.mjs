@@ -56,7 +56,7 @@ export default {
       const outgoing = new Headers(response.headers);
       outgoing.set('X-Content-Type-Options', 'nosniff');
       if ((url.pathname.startsWith('/api/') && url.pathname !== '/api/v1/image') || outgoing.get('Content-Type')?.includes('text/html')) {
-        outgoing.set('Cache-Control', 'no-store');
+        outgoing.set('Cache-Control', url.pathname === '/api/v1/media' ? 'no-store, no-transform' : 'no-store');
       }
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers: outgoing });
     } catch (error) {

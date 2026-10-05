@@ -1,3 +1,4 @@
+import { summarizeMediaRequests, type MediaRequestTiming } from "$lib/utils/playbackMediaTiming";
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 import { browser } from "$app/environment";
 import { SessionListService } from "$stores/list/sessionList";
@@ -985,7 +986,8 @@ function resolvePlayer(videoId: string, playlistId?: string, params?: string): P
 let playbackRequest = 0;
 
 export interface PlaybackTiming {
-	version: 1;
+	version: 2;
+	mediaRequests?: MediaRequestTiming[];
 	phase: "resolving" | "loading" | "playing" | "failed";
 	metadataCache: "miss" | "shared" | "hit";
 	metadataMs?: number;
@@ -997,6 +999,15 @@ export interface PlaybackTiming {
 }
 
 export const playbackTiming = writable<PlaybackTiming | null>(null);
+
+/** Include completed media probes when diagnostics are copied later. */
+export function getPlaybackDiagnostics(timing: PlaybackTiming): PlaybackTiming {
+ const mediaRequests = activeTiming?.source && activeTiming.sourceAt !== undefined && typeof performance !== "undefined"
+  ? summarizeMediaRequests(performance.getEntriesByType("resource") as PerformanceResourceTiming[], activeTiming.source, activeTiming.sourceAt)
+  : [];
+ return { ...timing, mediaRequests };
+}
+
 export interface PlaybackPreparation {
 	request: number;
 	videoId: string;
@@ -1020,7 +1031,7 @@ export function preparePlayback(videoId: string, playlistId?: string, params?: s
 	const cached = playerLookups.get(key);
 	const metadataCache = cached && cached.expires > Date.now()
 		? cached.expires === Infinity ? "shared" : "hit" : "miss";
-	activeTiming = { request, startedAt, result: { version: 1, phase: "resolving", metadataCache, readinessRetries: 0 } };
+	activeTiming = { request, startedAt, result: { version: 2, phase: "resolving", metadataCache, readinessRetries: 0 } };
 	playbackTiming.set({ ...activeTiming.result });
 	AudioPlayer.prepareTrack();
 	const source = resolvePlayer(videoId, playlistId, params).then(data => {
