@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { sectionHeading } from "$lib/i18n";
 	import observer from "$lib/components/Carousel/observer";
 	export let items = [];
 	export let heading = "";
@@ -7,7 +7,7 @@
 
 <div class="grid-container">
 	<div class="header resp-content-width">
-		<span class="h2">{$t(heading)}</span>
+		<span class="h2">{$sectionHeading(heading)}</span>
 	</div>
 	<div
 		class="grid resp-content-width"

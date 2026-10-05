@@ -1,7 +1,7 @@
 <svelte:options immutable={true} />
 
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, sectionHeading } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import { page } from "$app/stores";
 	import Icon from "$components/Icon/Icon.svelte";
@@ -132,10 +132,10 @@
 
 <div class="header resp-content-width">
 	{#if header?.subheading}
-		<p class="subheading">{header?.subheading}</p>
+		<p class="subheading">{$sectionHeading(header?.subheading)}</p>
 	{/if}
 	<span class="h2">
-		{$t(header.title)}
+		{$sectionHeading(header.title)}
 	</span>
 
 	{#if !header.title.includes("Videos") && header.browseId}

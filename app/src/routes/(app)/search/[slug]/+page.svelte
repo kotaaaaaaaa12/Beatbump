@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, sectionHeading } from "$lib/i18n";
 	import type { PageData } from "./$types";
 
 	import { page } from "$app/stores";
@@ -102,7 +102,7 @@
 				class="container music-shelf resp-content-width"
 				class:max-height={filter !== "all"}
 			>
-				<span class="h3">{$t(result.header.title)}</span>
+				<span class="h3">{$sectionHeading(result.header.title)}</span>
 				{#if filter !== "all"}
 					<div
 						class="music-shelf-list"

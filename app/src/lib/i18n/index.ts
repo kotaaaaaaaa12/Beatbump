@@ -42,6 +42,36 @@ export function translateFor(language: Locale, message: string, params: Paramete
 	return template.replace(/\{(\w+)\}/g, (match, key: string) => params[key] === undefined ? match : String(params[key]));
 }
 export const t = derived(locale, language => (message: string | undefined, params: Parameters = {}) => translateFor(language, message ?? "", params));
+// Upstream section labels vary in capitalization and whitespace. Keep this
+// normalization confined to headings so song and artist titles stay untouched.
+const normalizeHeading = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+const headingKeys = new Map(Object.keys(en).map(key => [normalizeHeading(key), key]));
+const personalizedHeadings: readonly [RegExp, string][] = [
+	[/^featuring (.+)$/i, "Featuring {artist}"],
+	[/^similar to (.+)$/i, "Similar to {artist}"],
+	[/^more like (.+)$/i, "More like {artist}"],
+	[/^more from (.+)$/i, "More from {artist}"],
+	[/^because you listened to (.+)$/i, "Because you listened to {artist}"],
+	[/^because you like (.+)$/i, "Because you like {artist}"],
+	[/^fans of (.+) might like$/i, "Fans of {artist} might like"],
+	[/^fans of (.+) also like$/i, "Fans of {artist} also like"],
+	[/^based on (.+)$/i, "Based on {artist}"],
+];
+export function translateSectionHeadingFor(language: Locale, value: string | undefined): string {
+	const original = value ?? "";
+	if (language === "en") return original;
+	const text = original.trim().replace(/\s+/g, " ");
+	const key = headingKeys.get(normalizeHeading(text));
+	if (key) return translateFor(language, key);
+	for (const [pattern, message] of personalizedHeadings) {
+		const match = pattern.exec(text);
+		if (match) return translateFor(language, message, { artist: match[1] });
+	}
+	// Unknown server labels remain readable rather than disappearing.
+	return original;
+}
+export const sectionHeading = derived(locale, language => (value: string | undefined) => translateSectionHeadingFor(language, value));
+
 export function translateMetadataFor(language: Locale, value: unknown): string {
 	const text = String(value ?? "");
 	if (language === "en") return text;

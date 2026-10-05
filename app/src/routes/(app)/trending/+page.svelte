@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, sectionHeading } from "$lib/i18n";
 	import { browser } from "$app/environment";
 	import Carousel from "$components/Carousel/Carousel.svelte";
 	import Header from "$lib/components/Layouts/Header.svelte";
@@ -28,7 +28,7 @@
 		{:else if carousel.categories}
 			<div class="breakout">
 				<div class="header">
-					<span class="h2">{$t(carousel.header.title)}</span>
+					<span class="h2">{$sectionHeading(carousel.header.title)}</span>
 					<a
 						class="link"
 						href="/explore"><small>{$t("See All")}</small></a
