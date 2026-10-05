@@ -18,7 +18,8 @@ type Carousel struct {
 
 type MusicShelf struct {
 	Header struct { // Use pointer for optional header
-		Title string `json:"title"`
+		Title  string `json:"title"`
+		Filter string `json:"filter,omitempty"`
 	} `json:"header,omitempty"`
 	Contents []IListItemRenderer `json:"contents"`
 }
@@ -122,7 +123,11 @@ func parseMusicResponsiveListItemRenderer(itemRender _youtube.MusicResponsiveLis
 	}
 
 	if len(itemRender.FlexColumns) > 0 {
-		subtitleRuns := itemRender.FlexColumns[1].MusicResponsiveListItemFlexColumnRenderer.Text.Runs
+		// Some localized cards contain only a title column.
+		var subtitleRuns []_youtube.Runs
+		if len(itemRender.FlexColumns) > 1 {
+			subtitleRuns = itemRender.FlexColumns[1].MusicResponsiveListItemFlexColumnRenderer.Text.Runs
+		}
 		itemArtists := make([]Artist, 0, len(subtitleRuns))
 		for _, subtitleItem := range subtitleRuns {
 			/*if subtitleItem.NavigationEndpoint.BrowseEndpoint.BrowseId == "" {
@@ -138,7 +143,7 @@ func parseMusicResponsiveListItemRenderer(itemRender _youtube.MusicResponsiveLis
 				item.Album = &artist
 			}
 
-			if len(subtitleRuns) > 0 && (subtitleItem.Text == "Artist" || subtitleItem.Text == "Album") {
+			if len(subtitleRuns) > 0 && (subtitleItem.Text == "Artist" || subtitleItem.Text == "Album" || subtitleItem.Text == "アーティスト" || subtitleItem.Text == "アルバム") {
 				artist.PageType = itemRender.NavigationEndpoint.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.PageType
 				artist.BrowseId = itemRender.NavigationEndpoint.BrowseEndpoint.BrowseId
 			}

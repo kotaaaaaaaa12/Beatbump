@@ -308,7 +308,11 @@ func doRequest(clientInfo ClientInfo, req *http.Request, requestPayload *innertu
 
 		req.Body = io.NopCloser(bytes.NewBuffer(payload))
 	}
-	req.Header.Set("Accept-Language", "en-us,en;q=0.5")
+	if requestPayload != nil && requestPayload.Context.Client.HL == "ja" {
+		req.Header.Set("Accept-Language", "ja-JP,ja;q=0.9,en;q=0.5")
+	} else {
+		req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	}
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9")
 	req.Header.Set("accept-encoding", "gzip, deflate")
 	req.Header.Set("referer", "https://music.youtube.com")
@@ -357,13 +361,16 @@ func getHttpClient() http.Client {
 
 func prepareInnertubeContext(clientInfo ClientInfo, visitorData *string) inntertubeContext {
 	client := innertubeClient{
-		// Request Japanese content while keeping upstream labels stable for parsers.
+		// Region and display language are independent request properties.
 		HL:            "en",
 		GL:            "JP",
 		ClientName:    clientInfo.ClientName,
 		ClientVersion: clientInfo.ClientVersion,
 		TimeZone:      "Asia/Tokyo",
 		UTCOffset:     540,
+	}
+	if clientInfo.Language == "ja" {
+		client.HL = "ja"
 	}
 	if clientInfo.DeviceModel != "" {
 		client.DeviceModel = clientInfo.DeviceModel

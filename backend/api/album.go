@@ -20,7 +20,7 @@ func AlbumEndpointHandler(c echo.Context) error {
 
 	var responseBytes []byte
 	var err error
-	responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypeAlbum, "", nil, nil, nil, api.WebMusic)
+	responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypeAlbum, "", nil, nil, nil, localizedMusicClient(c))
 
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))

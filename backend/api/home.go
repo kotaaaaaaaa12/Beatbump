@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func HomeEndpointHandler(c echo.Context) error {
@@ -26,9 +25,9 @@ func HomeEndpointHandler(c echo.Context) error {
 	var responseBytes []byte
 	var err error
 	if ctoken != "" {
-		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, params, &visitorData, &itct, &ctoken, api.WebMusic)
+		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, params, &visitorData, &itct, &ctoken, localizedMusicClient(c))
 	} else {
-		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, params, &visitorData, nil, nil, api.WebMusic)
+		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, params, &visitorData, nil, nil, localizedMusicClient(c))
 	}
 
 	if err != nil {
@@ -86,7 +85,7 @@ func ParseHome(homeResponse _youtube.HomeResponse) interface{} {
 
 				musicShelf.Header.BrowseId = stringPtr(header.MusicCarouselShelfBasicHeaderRenderer.MoreContentButton.ButtonRenderer.NavigationEndpoint.BrowseEndpoint.BrowseID)
 
-				if strings.Contains(musicShelf.Header.Title, "episodes") {
+				if isPodcastShelf(musicShelf.Header.Title) {
 					continue
 				}
 
@@ -195,6 +194,9 @@ func ParseHome(homeResponse _youtube.HomeResponse) interface{} {
 			header := section.MusicCarouselShelfRenderer.Header
 			if len(header.MusicCarouselShelfBasicHeaderRenderer.Title.Runs) != 0 {
 				musicShelf.Header.Title = header.MusicCarouselShelfBasicHeaderRenderer.Title.Runs[0].Text
+			}
+			if len(header.MusicCarouselShelfBasicHeaderRenderer.Strapline.Runs) != 0 {
+				musicShelf.Header.Subheading = stringPtr(header.MusicCarouselShelfBasicHeaderRenderer.Strapline.Runs[0].Text)
 			}
 			contents := make([]IListItemRenderer, 0, len(section.MusicCarouselShelfRenderer.Contents))
 			for _, carousel := range section.MusicCarouselShelfRenderer.Contents {

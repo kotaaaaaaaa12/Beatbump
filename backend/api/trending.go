@@ -15,13 +15,17 @@ func TrendingEndpointHandler(c echo.Context) error {
 		browseId = "FEmusic_explore"
 	}
 	qparams := c.QueryParam("params")
+	client := localizedMusicClient(c)
+	if browseId == "FEmusic_charts" {
+		client = api.WebMusic
+	}
 	if browseId == "FEmusic_explore" {
 		go func() { _, _ = japanCharts() }()
 	}
 	var responseBytes []byte
 	var err error
 
-	responseBytes, err = api.Browse(browseId, api.PageType_MusicPageTypePlaylist, qparams, nil, nil, nil, api.WebMusic)
+	responseBytes, err = api.Browse(browseId, api.PageType_MusicPageTypePlaylist, qparams, nil, nil, nil, client)
 
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))

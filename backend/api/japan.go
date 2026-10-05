@@ -13,7 +13,7 @@ import (
 
 // Country-selected charts are independent of the Container's egress location.
 // Never label an unverified, IP-selected home shelf as Japanese content.
-const japanRegionRevision = "country-selected-charts-1"
+const japanRegionRevision = "country-selected-charts-2"
 
 var japanChartCache struct {
 	sync.Mutex
@@ -135,6 +135,7 @@ func parseJapanCharts(raw []byte) ([]Carousel, error) {
 	}
 	parsed := ParseHome(response).(map[string]interface{})
 	var shelves []Carousel
+	var daily *Carousel
 	for _, shelf := range parsed["carousels"].([]Carousel) {
 		switch shelf.Header.Title {
 		case "Video charts":
@@ -147,6 +148,13 @@ func parseJapanCharts(raw []byte) ([]Carousel, error) {
 				switch item.Title {
 				case "Top 100 Live Performances - Japan", "Trending 20 Japan", "Daily Top Music Videos - Japan", "Top 100 Music Videos Japan":
 					shelf.Contents[i].TranslationKey = item.Title
+				}
+				if item.Title == "Daily Top Music Videos - Japan" {
+					today := Carousel{}
+					today.Header.Title = "Today's hits in Japan"
+					today.Header.Subheading = stringPtr("FROM JAPAN'S DAILY MUSIC VIDEO CHART")
+					today.Contents = []IListItemRenderer{shelf.Contents[i]}
+					daily = &today
 				}
 			}
 		case "Top artists":
@@ -161,6 +169,9 @@ func parseJapanCharts(raw []byte) ([]Carousel, error) {
 	if len(shelves) == 0 {
 		return nil, errors.New("Japan charts contained no shelves")
 	}
+	if daily != nil {
+		shelves = append([]Carousel{*daily}, shelves...)
+	}
 	return shelves, nil
 }
 
@@ -169,12 +180,17 @@ func marketSelectedShelf(title string) bool {
 	return strings.Contains(title, "community playlists") ||
 		strings.HasPrefix(title, "shorts featured section") ||
 		title == "featured playlists for you" || title == "featured playlists" ||
-		title == "today's biggest hits" || title == "quick picks" || title == "trending"
+		title == "today's biggest hits" || title == "quick picks" || title == "trending" ||
+		strings.Contains(title, "コミュニティ") && (strings.Contains(title, "プレイリスト") || strings.Contains(title, "再生リスト")) ||
+		title == "あなたにおすすめのプレイリスト" || title == "おすすめの再生リスト" ||
+		title == "今日のヒット曲" || title == "最新のヒット曲" || title == "クイック選曲" || title == "急上昇" ||
+		strings.HasPrefix(title, "ショート動画の注目")
 }
 
 func marketSelectedPlaylist(title string) bool {
 	title = strings.ToLower(strings.ReplaceAll(title, "’", "'"))
 	return title == "today's hits" || title == "new & now" || title == "new and now" ||
+		title == "今日のヒット曲" || title == "最新のヒット曲" || title == "新着＆注目" ||
 		strings.HasPrefix(title, "top 100 music videos") ||
 		strings.HasPrefix(title, "daily top music videos") ||
 		strings.HasPrefix(title, "trending 20 ") ||

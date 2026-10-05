@@ -54,7 +54,7 @@ func NextEndpointHandler(c echo.Context) error {
 		return errors.New("missing required param: videoId")
 	}
 
-	responseBytes, err := api.Next(videoId, playlistId, api.WebMusic, paramsMap)
+	responseBytes, err := api.Next(videoId, playlistId, localizedMusicClient(c), paramsMap)
 
 	var nextResponse _youtube.NextResponse
 	err = json.Unmarshal(responseBytes, &nextResponse)
@@ -187,4 +187,3 @@ type Item struct {
 	Length              string      `json:"length"`
 	ClickTrackingParams string      `json:"clickTrackingParams"`
 }
-

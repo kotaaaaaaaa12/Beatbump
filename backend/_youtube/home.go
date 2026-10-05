@@ -95,6 +95,11 @@ type HomeResponse struct {
 									Text string `json:"text"`
 								} `json:"runs"`
 							} `json:"title"`
+							Strapline struct {
+								Runs []struct {
+									Text string `json:"text"`
+								} `json:"runs"`
+							} `json:"strapline"`
 							AccessibilityData struct {
 								AccessibilityData struct {
 									Label string `json:"label"`

@@ -5,8 +5,8 @@ import (
 	"beatbump-server/backend/_youtube/api"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"github.com/labstack/echo/v4"
+	"net/http"
 )
 
 type PlaylistEndpointParams struct {
@@ -50,21 +50,25 @@ func PlaylistEndpointHandler(c echo.Context) error {
 	itct := query.Get("itct")
 	ctoken := query.Get("ctoken")
 
-	r, err := GetPlaylist(browseID, ctoken, itct)
+	r, err := GetPlaylist(browseID, ctoken, itct, c.QueryParam("lang"))
 	if err != nil {
 		return c.String(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, r)
 }
-func GetPlaylist(browseID string, ctoken string, itct string) (PlaylistAPIResponse, error) {
+func GetPlaylist(browseID string, ctoken string, itct string, languages ...string) (PlaylistAPIResponse, error) {
+	client := api.WebMusic
+	if len(languages) != 0 {
+		client = musicClientForLanguage(languages[0])
+	}
 	var responseBytes []byte
 	var err error
 
-	if ctoken != ""  {
-		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, "", nil, &itct, &ctoken, api.WebMusic)
+	if ctoken != "" {
+		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, "", nil, &itct, &ctoken, client)
 	} else {
-		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, "", nil, nil, nil, api.WebMusic)
+		responseBytes, err = api.Browse(browseID, api.PageType_MusicPageTypePlaylist, "", nil, nil, nil, client)
 	}
 
 	if err != nil {
@@ -132,7 +136,7 @@ func parsePlaylist(playlistResponse _youtube.PlaylistResponse) PlaylistAPIRespon
 
 	if musicPlaylistShelfRenderer != nil {
 		tracks := []IListItemRenderer{}
-		
+
 		for _, musicResponsiveListItemRenderer := range musicPlaylistShelfRenderer.Contents {
 			if musicResponsiveListItemRenderer.ContinuationItemRenderer != nil {
 				continuation = musicResponsiveListItemRenderer.ContinuationItemRenderer

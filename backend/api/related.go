@@ -18,7 +18,7 @@ func RelatedEndpointHandler(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Missing required param: browseId"))
 	}
 
-	responseBytes, err := api.Browse(browseId, api.PageType_MusicPageTypeTrackRelated, "", nil, nil, nil, api.WebMusic)
+	responseBytes, err := api.Browse(browseId, api.PageType_MusicPageTypeTrackRelated, "", nil, nil, nil, localizedMusicClient(c))
 
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))

@@ -42,9 +42,9 @@ func SearchEndpointHandler(c echo.Context) error {
 
 	var responseBytes []byte
 	if itct != "" && ctoken != "" {
-		responseBytes, err = api.Search(queryUnescape, filterId, &itct, &ctoken, api.WebMusic)
+		responseBytes, err = api.Search(queryUnescape, filterId, &itct, &ctoken, localizedMusicClient(c))
 	} else {
-		responseBytes, err = api.Search(queryUnescape, filterId, nil, nil, api.WebMusic)
+		responseBytes, err = api.Search(queryUnescape, filterId, nil, nil, localizedMusicClient(c))
 	}
 
 	if err != nil {
@@ -140,11 +140,12 @@ func parseResponse(content []_youtube.SectionListRendererContents) ([]MusicShelf
 			}
 
 			currShelf.Header.Title = title
+			currShelf.Header.Filter = searchShelfType(title)
 			currShelf.Contents = make([]IListItemRenderer, 0, len(shelf.MusicShelfRenderer.Contents))
 			for _, entry := range shelf.MusicShelfRenderer.Contents {
 				item := parseMusicResponsiveListItemRenderer(entry.MusicResponsiveListItemRenderer)
 
-				entryTitle := strings.ToLower(strings.ReplaceAll(title, " ", "_"))
+				entryTitle := searchShelfType(title)
 				item.Type = entryTitle
 				if entryTitle == "top_result" && item.Endpoint != nil {
 					if strings.Contains(item.Endpoint.PageType, "SINGLE") ||
@@ -188,4 +189,27 @@ func parseResponse(content []_youtube.SectionListRendererContents) ([]MusicShelf
 	}
 
 	return response, nil
+}
+
+func searchShelfType(title string) string {
+	switch strings.ToLower(strings.TrimSpace(title)) {
+	case "songs", "曲", "楽曲":
+		return "songs"
+	case "videos", "動画":
+		return "videos"
+	case "albums", "アルバム":
+		return "albums"
+	case "artists", "アーティスト":
+		return "artists"
+	case "community playlists", "コミュニティのプレイリスト", "コミュニティ プレイリスト", "コミュニティの再生リスト":
+		return "community_playlists"
+	case "featured playlists", "注目のプレイリスト", "おすすめのプレイリスト", "注目の再生リスト", "おすすめの再生リスト":
+		return "featured_playlists"
+	case "playlists", "プレイリスト", "再生リスト":
+		return "all_playlists"
+	case "top result", "top results", "トップの結果", "上位の結果", "トップの検索結果":
+		return "top_result"
+	default:
+		return "all"
+	}
 }

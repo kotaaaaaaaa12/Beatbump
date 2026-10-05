@@ -93,6 +93,7 @@ type innertubeClient struct {
 type Params map[string]string
 
 type ClientInfo struct {
+	Language          string
 	ClientId          string
 	ClientName        string
 	ClientKey         string

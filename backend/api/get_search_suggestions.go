@@ -23,7 +23,7 @@ func GetSearchSuggstionsHandler(c echo.Context) error {
 
 	var responseBytes []byte
 
-	responseBytes, err = api.GetSearchSuggestions(queryUnescape, api.WebMusic)
+	responseBytes, err = api.GetSearchSuggestions(queryUnescape, localizedMusicClient(c))
 
 	if err != nil {
 		return c.String(http.StatusInternalServerError, fmt.Sprintf("Error building API request: %s", err))

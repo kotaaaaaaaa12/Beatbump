@@ -21,7 +21,7 @@ func GetQueueHandler(c echo.Context) error {
 	if videoId == "" && playlistId == "" {
 		return errors.New("missing required param: videoId")
 	}
-	responseBytes, err := api.GetQueue(videoId, playlistId, api.WebMusic)
+	responseBytes, err := api.GetQueue(videoId, playlistId, localizedMusicClient(c))
 
 	var nextResponse _youtube.NextResponse
 	err = json.Unmarshal(responseBytes, &nextResponse)
