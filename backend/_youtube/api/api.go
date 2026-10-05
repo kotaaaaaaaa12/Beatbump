@@ -344,14 +344,22 @@ func doRequest(clientInfo ClientInfo, req *http.Request, requestPayload *innertu
 	return respBytes, nil
 }
 
-func getHttpClient() http.Client {
+// Reuse one connection pool for search, browse and player lookups.
+// Creating a transport per request prevents keep-alive and repeats TLS setup.
+var youtubeHTTPClient = newHTTPClient()
+
+func getHttpClient() *http.Client {
+	return youtubeHTTPClient
+}
+
+func newHTTPClient() *http.Client {
 
 	myDialer := net.Dialer{}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return myDialer.DialContext(ctx, "tcp4", addr)
 	}
-	client := http.Client{
+	client := &http.Client{
 		Transport: transport,
 		Timeout:   45 * time.Second,
 	}
