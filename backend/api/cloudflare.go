@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -83,55 +84,76 @@ func cloudMediaURL(c echo.Context, raw string) string {
 	return siteOrigin(c) + "/api/v1/media?ticket=" + ticket
 }
 
-func CloudMediaHandler(c echo.Context) error {
+func mediaTicketSource(c echo.Context) (*url.URL, error) {
 	key := os.Getenv("MEDIA_PROXY_KEY")
 	ticket := c.QueryParam("ticket")
 	if len(ticket) > 16384 || key == "" {
-		return c.String(403, "Invalid media ticket")
+		return nil, echo.NewHTTPError(403, "Invalid media ticket")
 	}
 	parts := strings.Split(ticket, ".")
 	if len(parts) != 2 {
-		return c.String(403, "Invalid media ticket")
+		return nil, echo.NewHTTPError(403, "Invalid media ticket")
 	}
 	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(parts[0]))
 	if err != nil || !hmac.Equal(sig, mac.Sum(nil)) {
-		return c.String(403, "Invalid media ticket")
+		return nil, echo.NewHTTPError(403, "Invalid media ticket")
 	}
 	data, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return c.String(403, "Invalid media ticket")
+		return nil, echo.NewHTTPError(403, "Invalid media ticket")
 	}
 	u, err := checkedMediaURL(string(data))
 	if err != nil {
-		return c.String(410, "Media URL expired or invalid. Reload the track.")
+		return nil, echo.NewHTTPError(410, "Media URL expired or invalid. Reload the track.")
 	}
+	return u, nil
+}
+
+func mediaSourceRequests(ctx context.Context, u *url.URL, requestedRange string) (*http.Request, *http.Request, error) {
 	query := u.Query()
 	query.Set("host", u.Hostname())
 	query.Del("range")
 	query.Del("title")
 	upstream := strings.TrimRight(os.Getenv("COMPANION_URL"), "/") + "/companion/videoplayback?" + query.Encode()
-	req, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, upstream, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, upstream, nil)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	if r := c.Request().Header.Get("Range"); r != "" {
-		if !byteRange.MatchString(r) {
-			return c.String(416, "Unsupported byte range")
-		}
-		req.Header.Set("Range", r)
+	if requestedRange != "" {
+		req.Header.Set("Range", requestedRange)
 	}
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("COMPANION_SECRET_KEY"))
-	directRequest, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, u.String(), nil)
+	directRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	directRequest.Header.Set("Range", req.Header.Get("Range"))
 	directRequest.Header.Set("User-Agent", "Mozilla/5.0")
 	directRequest.Header.Set("Origin", "https://www.youtube.com")
 	directRequest.Header.Set("Referer", "https://www.youtube.com/")
-	response, transport, elapsed, err := fetchMedia(c.Request().Context(), req, directRequest, c.Request().Method != http.MethodHead, mediaHedgeDelay)
+	return req, directRequest, nil
+}
+
+func CloudMediaHandler(c echo.Context) error {
+	u, err := mediaTicketSource(c)
+	if err != nil {
+		return err
+	}
+	requestedRange := c.Request().Header.Get("Range")
+	if requestedRange != "" && !byteRange.MatchString(requestedRange) {
+		return c.String(416, "Unsupported byte range")
+	}
+	req, directRequest, err := mediaSourceRequests(c.Request().Context(), u, requestedRange)
+	if err != nil {
+		return err
+	}
+	response := audioIndexes.prefixResponse(u.String(), requestedRange)
+	transport, elapsed := "cache", time.Duration(0)
+	if response == nil {
+		response, transport, elapsed, err = fetchMedia(c.Request().Context(), req, directRequest, c.Request().Method != http.MethodHead, mediaHedgeDelay)
+	}
 	if err != nil {
 		var rejected *mediaResponseError
 		if errors.As(err, &rejected) && rejected.status == http.StatusRequestedRangeNotSatisfiable {

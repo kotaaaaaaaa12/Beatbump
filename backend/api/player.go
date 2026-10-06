@@ -4,6 +4,7 @@ import (
 	"beatbump-server/backend/_youtube"
 	"beatbump-server/backend/_youtube/api"
 	"beatbump-server/backend/db"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,6 +71,15 @@ func PlayerEndpointHandler(c echo.Context) error {
 		streamUrl := format.URL
 
 		format.URL = cloudMediaURL(c, streamUrl)
+		if format.Itag == 140 && format.URL != "" && strings.Contains(format.URL, "/api/v1/media?ticket=") && format.InitRange.Start == "0" && format.IndexRange.Start != "" {
+			playerResponse.StreamingData.AudioHLSManifestURL = strings.Replace(format.URL, "/api/v1/media?ticket=", "/api/v1/audio.m3u8?ticket=", 1)
+			// Warm only the selected/queued prefix requested by a native HLS browser.
+			if query.Get("nativeHls") == "1" {
+				if source, sourceErr := checkedMediaURL(streamUrl); sourceErr == nil {
+					go func() { _, _ = audioIndexes.load(context.Background(), source) }()
+				}
+			}
+		}
 	}
 
 	// Ongoing Listening Logic

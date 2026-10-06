@@ -19,10 +19,11 @@ type PlayerResponse struct {
 		ContextParams   string `json:"contextParams"`
 	} `json:"playabilityStatus"`
 	StreamingData struct {
-		DrmFamilies      string `json:"drmFamilies,omitempty"`
-		HlsManifestUrl   string `json:"hlsManifestUrl"`
-		ExpiresInSeconds string `json:"expiresInSeconds"`
-		Formats          []struct {
+		AudioHLSManifestURL string `json:"audioHlsManifestUrl,omitempty"`
+		DrmFamilies         string `json:"drmFamilies,omitempty"`
+		HlsManifestUrl      string `json:"hlsManifestUrl"`
+		ExpiresInSeconds    string `json:"expiresInSeconds"`
+		Formats             []struct {
 			Itag             int    `json:"itag"`
 			MimeType         string `json:"mimeType"`
 			Bitrate          int    `json:"bitrate"`
