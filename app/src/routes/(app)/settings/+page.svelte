@@ -9,7 +9,7 @@
 	import { browser } from "$app/environment";
 	import Header from "$components/Layouts/Header.svelte";
 	import { APIClient } from "$lib/api";
-	import { AudioPlayer, playbackTiming, getPlaybackDiagnostics } from "$lib/player";
+	import { AudioPlayer, playbackTiming, getPlaybackDiagnostics, PLAYBACK_DIAGNOSTIC_VERSION } from "$lib/player";
 	import { settings, type Theme } from "$stores/settings";
 	function changeLanguage(event: Event) {
 		setLanguage((event.currentTarget as HTMLSelectElement).value as LanguagePreference);
@@ -88,7 +88,7 @@
         </section>
 		<section class="playback-diagnostics">
 			<details>
-				<summary>{$t("Playback diagnostics")}</summary>
+				<summary>{$t("Playback diagnostics")} · v{PLAYBACK_DIAGNOSTIC_VERSION}</summary>
 				{#if $playbackTiming}
 					<dl>
 						<dt>{$t("Status")}</dt><dd>{$t($playbackTiming.phase)}</dd>

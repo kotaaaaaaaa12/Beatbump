@@ -17,6 +17,8 @@ func main() {
 	e := echo.New()
 	e.JSONSerializer = api.CloudJSONSerializer{}
 	e.GET("/healthz", api.CloudHealthHandler)
+	e.GET("/api/v1/audio.m3u8", api.CloudAudioManifestHandler)
+	e.HEAD("/api/v1/audio.m3u8", api.CloudAudioManifestHandler)
 	e.GET("/api/v1/media", api.CloudMediaHandler)
 	e.HEAD("/api/v1/media", api.CloudMediaHandler)
 	e.GET("/api/v1/image", api.CloudImageHandler)

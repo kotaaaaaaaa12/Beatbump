@@ -4,6 +4,7 @@ import { filterMap, map } from "$lib/utils/collections/array";
 import type { UserSettings } from "$stores/settings";
 export interface PlayerFormats {
 	hls?: string;
+ audioHls?: string;
 	dash?: string;
 	streams?: { url: string; original_url: string; mimeType: string }[];
 	video?: string;
@@ -129,6 +130,7 @@ export function sort({
 			? audioDuration : trackDuration;
 	return {
 		hls,
+  audioHls: typeof data?.streamingData?.audioHlsManifestUrl === "string" ? data.streamingData.audioHlsManifestUrl : undefined,
 		dash: dash_manifest,
 		streams: arr as NonNullable<(typeof arr)[number]>[],
 		video,

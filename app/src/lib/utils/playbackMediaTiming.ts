@@ -3,7 +3,7 @@ export interface MediaRequestTiming {
  firstByteMs: number;
  transferMs: number;
  upstreamMs?: number;
- transport?: "companion" | "direct";
+ transport?: "companion" | "direct" | "cache";
  responseStatus?: number;
  responseBytes?: number;
  rangeStart?: number;
@@ -14,17 +14,19 @@ export interface MediaRequestTiming {
 
 /** Summarize completed requests without exposing signed URLs or headers. */
 export function summarizeMediaRequests(entries: readonly PerformanceResourceTiming[], source: string, sourceAt: number): MediaRequestTiming[] {
- return entries.filter(entry => entry.name === source && entry.startTime >= sourceAt - 10 && entry.responseStart > 0)
+ const audioSource = source.includes("/api/v1/audio.m3u8?") ? source.replace("/api/v1/audio.m3u8?", "/api/v1/media?") : source;
+ const playlistSource = source.includes("/api/v1/media?") ? source.replace("/api/v1/media?", "/api/v1/audio.m3u8?") : source;
+ return entries.filter(entry => (entry.name === source || entry.name === audioSource || entry.name === playlistSource) && entry.startTime >= sourceAt - 10 && entry.responseStart > 0)
   .sort((a, b) => a.startTime - b.startTime).slice(-12).map(entry => {
    const result: MediaRequestTiming = {
     startDelayMs: Math.max(0, Math.round(entry.startTime - sourceAt)),
     firstByteMs: Math.max(0, Math.round(entry.responseStart - entry.startTime)),
     transferMs: Math.max(0, Math.round(entry.responseEnd - entry.responseStart)),
    };
-   const upstream = entry.serverTiming?.find(timing => ["media_companion", "media_direct"].includes(timing.name));
+   const upstream = entry.serverTiming?.find(timing => ["media_companion", "media_direct", "media_cache"].includes(timing.name));
    if (upstream && Number.isFinite(upstream.duration) && upstream.duration >= 0) {
     result.upstreamMs = Math.round(upstream.duration);
-    result.transport = upstream.name === "media_direct" ? "direct" : "companion";
+    result.transport = upstream.name === "media_cache" ? "cache" : upstream.name === "media_direct" ? "direct" : "companion";
    }
    const fields = { media_status: "responseStatus", media_bytes: "responseBytes", media_range_start: "rangeStart", media_range_end: "rangeEnd", media_total_bytes: "totalBytes" } as const;
    for (const [name, field] of Object.entries(fields)) {

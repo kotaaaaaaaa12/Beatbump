@@ -1,3 +1,4 @@
+import { nativeAudioManifest } from "$lib/utils/nativeAudioManifest";
 import { summarizeMediaRequests, captureMediaEvent, type PlaybackMediaEvent, type MediaRequestTiming } from "$lib/utils/playbackMediaTiming";
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 import { browser } from "$app/environment";
@@ -29,7 +30,7 @@ export interface IEventHandler {
 	onEvent<K extends keyof HTMLElementEventMap>(type: K, cb: Callback<K>): void;
 }
 
-type SrcDict = { original_url: string; url: string; video_url?: string; duration?: number; autoplay?: boolean };
+type SrcDict = { original_url: string; url: string; video_url?: string; fallback_url?: string; duration?: number; autoplay?: boolean };
 
 interface AudioPlayerEvents {
 	play: unknown;
@@ -304,6 +305,8 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	private contentDuration: number | undefined;
 	private resolvingTrack = false;
 	private nextWarmAt = 0;
+ private nativeFallbackURL: string | undefined;
+ public get nativeHLSSupported() { return !!this.player?.canPlayType("application/vnd.apple.mpegurl"); }
 	private playerKind: "hls" | "html5" = "html5";
 	private declare unsubscriber: () => void;
 	constructor() {
@@ -488,6 +491,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 			promise
 				.catch((e) => {
 					if (revision !== this.sourceRevision || e.name === "AbortError") return;
+     if (e.name !== "NotAllowedError" && this.fallbackNativeAudio()) return;
 					this.playRequested = false;
 					this._loading.set(false);
 					this._paused.set(this.player.paused);
@@ -570,6 +574,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 	public async updateSrc({
 		url,
 		videoUrl,
+  fallbackURL,
 		duration,
 		preservePosition = false,
 		autoplay = true,
@@ -577,11 +582,17 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 		autoplay?: boolean;
 		preservePosition?: boolean;
 		videoUrl?: string;
+  fallbackURL?: string;
 		url: string;
 		duration?: number;
 	}) {
 		if (url === undefined) return;
 		this.resolvingTrack = false;
+  this.nativeFallbackURL = fallbackURL;
+  if (fallbackURL) {
+   this.hls?.destroy(); this.hls = undefined;
+   this.playerKind = "html5";
+  }
 		const checkpoint = preservePosition ? this.lastPosition : 0;
 		this.sourceRevision++;
 		this.nextWarmAt = 0;
@@ -653,6 +664,16 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 			});
 		}
 	}
+
+ private fallbackNativeAudio() {
+  if (!this.nativeFallbackURL) return false;
+  const url = this.nativeFallbackURL;
+  this.nativeFallbackURL = undefined;
+  recordPlaybackEvent(this.player, "native_hls_fallback");
+  void this.updateSrc({ url, preservePosition: true, autoplay: this.playRequested,
+   duration: this.contentDuration === undefined ? undefined : this.contentDuration * 1000 });
+  return true;
+ }
 
 	private async handleRepeat() {
 		if (
@@ -854,6 +875,7 @@ class AudioPlayerImpl extends EventEmitter<AudioPlayerEvents> {
 
 
 		this.onEvent("error", () => {
+   if (this.fallbackNativeAudio()) return;
 			if (
 				this.player?.error?.message.includes("Empty src") ||
 				!this.player?.error?.message
@@ -960,6 +982,7 @@ function resolvePlayer(videoId: string, playlistId?: string, params?: string): P
 	entry.promise = (async () => {
 		for (let attempt = 0; attempt < 30; attempt++) {
 			const query = new URLSearchParams({ videoId });
+   if (AudioPlayer.nativeHLSSupported) query.set("nativeHls", "1");
 			if (playlistId) query.set("playlistId", playlistId);
 			if (params) query.set("playerParams", params);
 			const response = await APIClient.fetch(`/api/v1/player.json?${query}`);
@@ -988,8 +1011,11 @@ function resolvePlayer(videoId: string, playlistId?: string, params?: string): P
 }
 let playbackRequest = 0;
 
+export const PLAYBACK_DIAGNOSTIC_VERSION = 4;
+
 export interface PlaybackTiming {
-	version: 3;
+	version: 4;
+ playbackTransport?: "native-hls" | "file";
  mediaEvents?: PlaybackMediaEvent[];
 	mediaRequests?: MediaRequestTiming[];
 	phase: "resolving" | "loading" | "playing" | "failed";
@@ -1035,7 +1061,7 @@ export function preparePlayback(videoId: string, playlistId?: string, params?: s
 	const cached = playerLookups.get(key);
 	const metadataCache = cached && cached.expires > Date.now()
 		? cached.expires === Infinity ? "shared" : "hit" : "miss";
-	activeTiming = { request, startedAt, result: { version: 3, phase: "resolving", metadataCache, readinessRetries: 0 } };
+	activeTiming = { request, startedAt, result: { version: PLAYBACK_DIAGNOSTIC_VERSION, phase: "resolving", metadataCache, readinessRetries: 0 } };
 	playbackTiming.set({ ...activeTiming.result });
 	AudioPlayer.prepareTrack();
 	const source = resolvePlayer(videoId, playlistId, params).then(data => {
@@ -1071,11 +1097,14 @@ export function cancelPreparedPlayback(prepared: PlaybackPreparation) {
 }
 
 function markPlaybackSource(url: string) {
-	if (!activeTiming || activeTiming.result.phase !== "resolving") return;
+	if (!activeTiming || activeTiming.result.phase === "failed") return;
 	activeTiming.source = new URL(url, location.href).href;
-	activeTiming.sourceAt = performance.now();
-	activeTiming.result.sourceReadyMs = elapsed(activeTiming.startedAt);
-	activeTiming.result.phase = "loading";
+	if (activeTiming.sourceAt === undefined) {
+  activeTiming.sourceAt = performance.now();
+  activeTiming.result.sourceReadyMs = elapsed(activeTiming.startedAt);
+ }
+ activeTiming.result.playbackTransport = new URL(url, location.href).pathname === "/api/v1/audio.m3u8" ? "native-hls" : "file";
+	if (activeTiming.result.phase !== "playing") activeTiming.result.phase = "loading";
 	playbackTiming.set({ ...activeTiming.result });
 }
 
@@ -1101,8 +1130,8 @@ export function prefetchSource(videoId: string, playlistId?: string) {
 }
 
 /** Updates the current track for the audio player */
-export function updatePlayerSrc({ url, video_url, duration, autoplay }: SrcDict): void {
-	AudioPlayer.updateSrc({ url, videoUrl: video_url, duration, autoplay });
+export function updatePlayerSrc({ url, video_url, fallback_url, duration, autoplay }: SrcDict): void {
+	AudioPlayer.updateSrc({ url, videoUrl: video_url, fallbackURL: fallback_url, duration, autoplay });
 }
 
 // Get source URLs
@@ -1166,16 +1195,18 @@ export const getSrc = async (
 
 function setTrack(formats: PlayerFormats, shouldAutoplay: boolean, autoplay = true) {
 	let format = undefined;
-	if (userSettings?.playback?.Stream === "HLS") {
+	if (userSettings?.playback?.Stream === "HLS" && formats.hls) {
 		format = { original_url: formats?.hls || "", url: formats.hls || "" };
 	} else {
 		format = formats.streams?.[0];
 	}
+ const manifest = format && browser ? nativeAudioManifest(format.url, formats.audioHls, AudioPlayer.nativeHLSSupported, location.origin) : undefined;
 	if (format && shouldAutoplay)
 		updatePlayerSrc({
 			video_url: formats.video,
 			original_url: format.original_url,
-			url: format.url,
+			url: manifest ?? format.url,
+   fallback_url: manifest ? format.url : undefined,
 			duration: formats.duration,
 			autoplay
 		});
