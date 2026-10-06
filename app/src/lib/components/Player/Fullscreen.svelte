@@ -41,6 +41,7 @@
 	import Loading from "../Loading/Loading.svelte";
 	import Tabs from "../Tabs";
 	import Controls from "./Controls.svelte";
+	import Lyrics from "./Lyrics.svelte";
 	import { createPlayerPopperMenu } from "./Player.svelte";
 	import ProgressBar from "./ProgressBar";
 	import { progressBarSeek } from "./ProgressBar/ProgressBar.svelte";
@@ -48,11 +49,13 @@
 	import { fullscreenStore } from "./channel";
 
 	export let state: "open" | "closed";
+	let showLyrics = false;
 
 	const {
 		paused,
 		loading: audioLoading,
 		currentTimeStore: currentTime,
+		durationStore: duration,
 		videoUrlStore: videoUrl,
 		mode,
 	} = AudioPlayer;
@@ -351,13 +354,13 @@
 			class="column"
 			use:pan={{ capture: true }}
 			on:pan={(event) => {
-				if (!$isMobileMQ) return;
+				if (!$isMobileMQ || showLyrics) return;
 				const { detail } = event;
 				if (Math.abs(detail.deltaY || 0) < 65) return;
 				trackMovement(0, detail);
 			}}
 			on:panend={(event) => {
-				if (!$isMobileMQ) return;
+				if (!$isMobileMQ || showLyrics) return;
 				const { detail } = event;
 				const direction = Math.sign(detail.deltaY || 0) === -1 ? "up" : "down";
 
@@ -381,6 +384,7 @@
 			{/if}
 			<div
 				class="album-art"
+				class:show-lyrics={showLyrics}
 				style="width: {!$isMobileMQ ? (queueOpen ? 55 : 95) : '100'}vw;"
 			>
 				<div class="img-container">
@@ -394,23 +398,28 @@
 					>
 						<div class="player-kind-wrapper">
 							<button
-								class:active={$mode === "video"}
+								class:active={$mode === "video" && !showLyrics}
 								on:click={() => {
+									showLyrics = false;
 									$mode = "video";
 								}}>{$t("Video")}</button
 							><button
-								class:active={$mode === "audio"}
+								class:active={$mode === "audio" && !showLyrics}
 								on:click={() => {
+									showLyrics = false;
 									$mode = "audio";
 								}}>{$t("Audio")}</button
 							>
+							<button class:active={showLyrics} on:click={() => { showLyrics = true; $mode = "audio"; }}>{$t("Lyrics")}</button>
 						</div>
 					</div>
 					{#if loading}
 						<Loading size="3em" />
 					{/if}
 
-						{#if $mode === "audio"}
+						{#if showLyrics}
+							<div class="lyrics-panel"><Lyrics track={data} position={$currentTime} duration={$duration} enabled={state === "open" && showLyrics} /></div>
+						{:else if $mode === "audio"}
                             <div class="thumbnail" id="img">
 							<img
 								id="img"
@@ -638,6 +647,14 @@
 </div>
 
 <style lang="scss">
+	.lyrics-panel { width: min(48vw, 740px); height: min(65vh, 720px); min-height: 200px; }
+	.show-lyrics .img-container { max-height: none; }
+	@media (max-width: 719px) {
+		.lyrics-panel { width: calc(100vw - 32px); height: clamp(180px, 33vh, 360px); }
+		.show-lyrics .img-container { margin-bottom: 1em; }
+		.show-lyrics .kind-selector { margin-top: .5rem; }
+	}
+
 	.pad {
 		padding: 2vh 1em 1.5em;
 		// height: 100%;
@@ -960,10 +977,10 @@
 
 	.player-kind-wrapper {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(3, 1fr);
 		position: relative;
 		isolation: isolate;
-		max-width: 50%;
+		max-width: 90%;
 		// width: 100%;
 		&::before {
 			content: "";

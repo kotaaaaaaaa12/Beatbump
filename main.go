@@ -39,6 +39,7 @@ func main() {
 
 	e.GET("/api/v1/search.json", api.SearchEndpointHandler)
 	e.GET("/api/v1/player.json", api.PlayerEndpointHandler)
+	e.GET("/api/v1/lyrics.json", api.LyricsEndpointHandler)
 	e.GET("/api/v1/playlist.json", api.PlaylistEndpointHandler)
 	e.GET("/api/v1/next.json", api.NextEndpointHandler)
 	e.GET("/api/v1/related.json", api.RelatedEndpointHandler)

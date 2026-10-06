@@ -1154,5 +1154,12 @@
   "Bollywood": "Bollywood",
   "Musicals": "Musicals",
   "Christmas Music": "Christmas Music",
-  "Translation pending…": "Translation pending…"
+  "Translation pending…": "Translation pending…",
+  "Loading lyrics…": "Loading lyrics…",
+  "Tap a line to seek": "Tap a line to seek",
+  "Could not connect to the lyrics service.": "Could not connect to the lyrics service.",
+  "Lyrics are not available for this track.": "Lyrics are not available for this track.",
+  "Instrumental track": "Instrumental track",
+  "Lyrics source": "Lyrics source",
+  "Seek to {time}": "Seek to {time}"
 }

@@ -1154,5 +1154,12 @@
   "Bollywood": "ボリウッド",
   "Musicals": "ミュージカル",
   "Christmas Music": "クリスマス音楽",
-  "Translation pending…": "翻訳待ち…"
+  "Translation pending…": "翻訳待ち…",
+  "Loading lyrics…": "歌詞を読み込み中…",
+  "Tap a line to seek": "行をタップするとその位置から再生",
+  "Could not connect to the lyrics service.": "歌詞サービスに接続できませんでした。",
+  "Lyrics are not available for this track.": "この曲の歌詞は見つかりませんでした。",
+  "Instrumental track": "歌詞のないインストゥルメンタル曲です",
+  "Lyrics source": "歌詞の提供元",
+  "Seek to {time}": "{time}から再生"
 }
