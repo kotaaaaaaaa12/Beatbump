@@ -41,15 +41,8 @@
     $: ({key} = $layoutData);
     let main: HTMLElement;
 
-    let isFullscreen = false;
-
-    $: $fullscreenStore === "open"
-        ? setTimeout(() => {
-            isFullscreen = true;
-        }, 425)
-        : setTimeout(() => {
-            isFullscreen = false;
-        }, 0);
+    // Keep the expanded player tied to the current state, including rapid toggles.
+    $: isFullscreen = $fullscreenStore === "open";
 
     let queueAlreadyPopulated = false;
 

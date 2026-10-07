@@ -16,10 +16,10 @@ export const load: PageLoad = async ({
 	fetch,
 }): Promise<SearchResponse> => {
 	const slug = params.slug;
-	const filter = url.searchParams.get("filter") || "";
+	const filter = url.searchParams.get("filter") || "all";
 	const restricted = url.searchParams.get("restricted") || "";
 
-	const apiUrl = `/api/v1/search.json?q=${slug}${
+	const apiUrl = `/api/v1/search.json?q=${encodeURIComponent(slug)}${
 		filter !== "" ? `&filter=${encodeURIComponent(filter)}` : ""
 	}${restricted ? `&restricted=${restricted}` : ""}`;
 	const response = await APIClient.fetch(apiUrl);

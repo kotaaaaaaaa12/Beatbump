@@ -30,13 +30,9 @@
 	import { SITE_ORIGIN_URL, playbackURLStateUpdater } from "$stores/url";
 	import { windowWidth } from "$stores/window";
 	import { onMount } from "svelte";
-	import { cubicOut, quartIn, quartOut } from "svelte/easing";
+	import { cubicOut, quartIn } from "svelte/easing";
 	import { tweened } from "svelte/motion";
-	import {
-		fade,
-		type EasingFunction,
-		type TransitionConfig,
-	} from "svelte/transition";
+	import { fade } from "svelte/transition";
 	import ListItem, { listItemPageContext } from "../ListItem/ListItem.svelte";
 	import Loading from "../Loading/Loading.svelte";
 	import Tabs from "../Tabs";
@@ -236,33 +232,6 @@
 		playbackURLStateUpdater.toggle();
 	}
 
-	function slideInOut(
-		node: HTMLElement,
-		{
-			duration = 400,
-			delay = 400,
-			easing = quartOut,
-		}: { duration?: number; easing?: EasingFunction; delay?: number },
-	): TransitionConfig {
-		const style = getComputedStyle(node);
-		const target_opacity = +style.opacity;
-		const transform = style.transform === "none" ? "" : style.transform;
-		const od = target_opacity * (1 - 0);
-
-		return {
-			easing,
-			duration,
-			delay,
-			css(t, u) {
-				return `
-				will-change: transform, opacity;
-					transform: ${transform} translate3d(0vh, ${(1 - t) * 100}vh, 0vh);
-					opacity: ${target_opacity - od * u};
-				`;
-			},
-		};
-	}
-
 	let imgElm: HTMLImageElement;
 	let videoElm: HTMLVideoElement;
 
@@ -306,11 +275,11 @@
 	$: $progressBarSeek && setVideoTime();
 </script>
 
+{#if state === "open"}
 {#if $queue.length && state === "open"}
 	{#if $immersiveQueue}
 		<div
 			in:fade|global={{ duration: 200, delay: 200, easing: quartIn }}
-			out:fade|global={{ duration: 300, delay: 0, easing: quartIn }}
 			class={$immersiveQueue ? "immersive-wrapper" : "backdrop"}
 			style={$immersiveQueue
 				? `transform: scale(${
@@ -343,12 +312,10 @@
 	class:open={state === "open"}
 	style:pointer-events={state === "open" ? "all" : "none"}
 	bind:clientHeight={windowHeight}
-	out:slideInOut={{ delay: 400, duration: 800, easing: quartOut }}
 >
 	<div
 		class="fullscreen-player-popup"
 		class:open={state === "open"}
-		out:slideInOut={{ duration: 1400, delay: 400, easing: quartOut }}
 	>
 		<div
 			class="column"
@@ -645,6 +612,8 @@
 		</div>
 	</div>
 </div>
+
+{/if}
 
 <style lang="scss">
 	.lyrics-panel { width: min(48vw, 740px); height: min(65vh, 720px); min-height: 200px; }
